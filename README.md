@@ -1,8 +1,18 @@
 # Crystal Fork - with PRP Generation
 
-> **Note**: This is an enhanced fork of Crystal with Product Requirement Prompts (PRPs) for structured AI-assisted development. Test users should follow the instructions below to run from source.
+> **Note**: This is an enhanced fork of Crystal with Product Requirement Prompts (PRPs) for structured AI-assisted development.
 
-## 🚀 Quick Start for Test Users
+## The Concept
+Crystal is a Multi-Session Claude Code Manager.
+
+The idea was to incorporate the ability to generate PRPs (see https://github.com/Wirasm/PRPs-agentic-eng)
+This code could be a good starting point to add customized templates allowing users to easily generate specific applications, such as Agents, Websites, etc.  The PRP generation works quite well and I've actually used it to generate PRPs that I have copied and given to Claude manually while working on this fork.
+
+Claude made some changes to the template struture that Rasmmus designed to merge the PRP instructions and templates into a single file. It also sugessted a future enhancement where the Creation Dialog could have optional variable replacement fields and modify those in the combined prompt/template. Some of this logic is in place in the metadata.json file that accompanies each template.md file and also in the template generation, but has not been implemented in the front end.
+
+I've also tested using a PRP in New Session generation.  I haven't looked at or tested the (existing) Include Documents function. A future enhancement might involved have a document library or to use Cole's (https://github.com/coleam00) mcp-crawl or Archon to add documentation. 
+
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ and pnpm installed
@@ -15,9 +25,6 @@
 # Clone the enhanced fork
 git clone https://github.com/jeffjacobsen/crystal.git
 cd crystal
-
-# Checkout the PRP-enhanced branch
-git checkout feature/prp-enhanced
 
 # Install dependencies and build
 pnpm run setup
@@ -103,7 +110,7 @@ When everything looks good:
 
 ### Download Pre-built Binaries
 
-Pre-built binaries are not yet available for this enhanced fork. Please run from source using the instructions above.
+Pre-built binaries are not yet available for this enhanced fork. Please run from source using the Quick Start instructions above.
 
 
 ## Building from Source
