@@ -8,7 +8,8 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
     claudeCodeManager,
     executionTracker,
     runCommandManager,
-    gitDiffManager
+    gitDiffManager,
+    worktreeManager
   } = services;
 
   // Listen to sessionManager events and broadcast to renderer
