@@ -334,6 +334,11 @@ export class WorktreeManager {
     }
   }
 
+  async getEffectiveMainBranch(project: { path: string }): Promise<string> {
+    // Always auto-detect the main branch
+    return await this.getProjectMainBranch(project.path);
+  }
+
   async hasChangesToRebase(worktreePath: string, mainBranch: string): Promise<boolean> {
     try {
       // Check if main branch has commits that the current branch doesn't have

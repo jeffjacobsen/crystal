@@ -1141,12 +1141,14 @@ export class SessionManager extends EventEmitter {
   }
 
   async sendTerminalInput(sessionId: string, data: string): Promise<void> {
-    const session = this.activeSessions.get(sessionId);
+    let session = this.activeSessions.get(sessionId);
+    let worktreePath: string;
+    
     if (!session) {
       throw new Error('Session not found');
     }
 
-    const worktreePath = session.worktreePath;
+    worktreePath = session.worktreePath;
 
     try {
       // Create terminal session if it doesn't exist
@@ -1177,12 +1179,14 @@ export class SessionManager extends EventEmitter {
   }
 
   async preCreateTerminalSession(sessionId: string): Promise<void> {
-    const session = this.activeSessions.get(sessionId);
+    let session = this.activeSessions.get(sessionId);
+    let worktreePath: string;
+    
     if (!session) {
       throw new Error('Session not found');
     }
 
-    const worktreePath = session.worktreePath;
+    worktreePath = session.worktreePath;
 
     try {
       // Create terminal session if it doesn't exist
