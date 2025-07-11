@@ -26,7 +26,7 @@ if (!sessionId || !ipcPath) {
 
 // Create IPC client to communicate with main process
 let ipcClient: net.Socket | null = null;
-const pendingRequests = new Map<string, (response: any) => void>();
+let pendingRequests = new Map<string, (response: any) => void>();
 
 function connectToMainProcess() {
   ipcClient = net.createConnection(ipcPath);

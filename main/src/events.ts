@@ -1,7 +1,6 @@
 import type { BrowserWindow } from 'electron';
 import { execSync } from './utils/commandExecutor';
 import type { AppServices } from './ipc/types';
-import type { VersionInfo } from './services/versionChecker';
 
 export function setupEventListeners(services: AppServices, getMainWindow: () => BrowserWindow | null): void {
   const {
@@ -9,8 +8,7 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
     claudeCodeManager,
     executionTracker,
     runCommandManager,
-    gitDiffManager,
-    worktreeManager
+    gitDiffManager
   } = services;
 
   // Listen to sessionManager events and broadcast to renderer
@@ -232,39 +230,11 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
           commitInfo += '\r\n';
         }
 
-        // Get commit history for this branch - use same method as View Diff tab
-        const project = sessionManager.getProjectForSession(session.id);
-        const mainBranch = project?.path ? await worktreeManager.getProjectMainBranch(project.path) : 'main';
-        
-        console.log(`[Events] Getting commits for session summary`);
-        console.log(`[Events] Project path: ${project?.path || 'not found'}`);
-        console.log(`[Events] Detected main branch: ${mainBranch}`);
-        
-        let commits: any[] = [];
-        try {
-          commits = gitDiffManager.getCommitHistory(session.worktreePath, 10, mainBranch);
-          console.log(`[Events] getCommitHistory returned ${commits.length} commits`);
-          if (commits.length === 0) {
-            console.log(`[Events] No commits returned, but no error thrown`);
-          } else {
-            console.log(`[Events] First commit:`, commits[0]);
-          }
-        } catch (error) {
-          console.error(`[Events] Error getting commit history:`, error);
-          console.error(`[Events] Error stack:`, error instanceof Error ? error.stack : 'No stack');
-          // If there's an error, try without specifying main branch (get all commits)
-          try {
-            const fallbackCommand = `git log --format="%H|%s|%ai|%an" --numstat -n 10`;
-            console.log(`[Events] Trying fallback command: ${fallbackCommand}`);
-            const logOutput = execSync(fallbackCommand, { cwd: session.worktreePath, encoding: 'utf8' });
-            console.log(`[Events] Fallback command output: ${logOutput.substring(0, 200)}...`);
-          } catch (fallbackError) {
-            console.error(`[Events] Fallback also failed:`, fallbackError);
-          }
-        }
+        // Get commit history for this branch
+        const project = sessionManager.getProjectForSession(sessionId);
+        const mainBranch = project?.main_branch || 'main';
+        const commits = gitDiffManager.getCommitHistory(session.worktreePath, 10, mainBranch);
 
-        console.log(`[Events] About to display commits. Count: ${commits.length}, Has uncommitted: ${!!statusOutput}`);
-        
         if (commits.length > 0) {
           commitInfo += `\x1b[1m\x1b[32m📝 Commits in this session:\x1b[0m\r\n`;
           commits.forEach((commit, index) => {
@@ -278,10 +248,7 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
             }
           });
         } else if (!statusOutput) {
-          console.log(`[Events] Showing 'No commits' message because: commits.length=${commits.length}, statusOutput='${statusOutput}'`);
           commitInfo += `\x1b[2mNo commits were made in this session.\x1b[0m\r\n`;
-        } else {
-          console.log(`[Events] Not showing any commit info because: commits.length=${commits.length}, statusOutput='${statusOutput}'`);
         }
 
         commitInfo += `\r\n\x1b[2m─────────────────────────────────────────\x1b[0m\r\n`;
@@ -349,36 +316,10 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
           commitInfo += '\r\n';
         }
 
-        // Get commit history for this branch - use same method as View Diff tab
-        const project = sessionManager.getProjectForSession(session.id);
-        const mainBranch = project?.path ? await worktreeManager.getProjectMainBranch(project.path) : 'main';
-        
-        console.log(`[Events] Getting commits for session summary (error handler)`);
-        console.log(`[Events] Project path: ${project?.path || 'not found'}`);
-        console.log(`[Events] Detected main branch: ${mainBranch}`);
-        
-        let commits: any[] = [];
-        try {
-          commits = gitDiffManager.getCommitHistory(session.worktreePath, 10, mainBranch);
-          console.log(`[Events] getCommitHistory returned ${commits.length} commits`);
-          if (commits.length === 0) {
-            console.log(`[Events] No commits returned, but no error thrown`);
-          } else {
-            console.log(`[Events] First commit:`, commits[0]);
-          }
-        } catch (error) {
-          console.error(`[Events] Error getting commit history:`, error);
-          console.error(`[Events] Error stack:`, error instanceof Error ? error.stack : 'No stack');
-          // If there's an error, try without specifying main branch (get all commits)
-          try {
-            const fallbackCommand = `git log --format="%H|%s|%ai|%an" --numstat -n 10`;
-            console.log(`[Events] Trying fallback command: ${fallbackCommand}`);
-            const logOutput = execSync(fallbackCommand, { cwd: session.worktreePath, encoding: 'utf8' });
-            console.log(`[Events] Fallback command output: ${logOutput.substring(0, 200)}...`);
-          } catch (fallbackError) {
-            console.error(`[Events] Fallback also failed:`, fallbackError);
-          }
-        }
+        // Get commit history for this branch
+        const project = sessionManager.getProjectForSession(sessionId);
+        const mainBranch = project?.main_branch || 'main';
+        const commits = gitDiffManager.getCommitHistory(session.worktreePath, 10, mainBranch);
 
         if (commits.length > 0) {
           commitInfo += `\x1b[1m\x1b[32m📝 Commits before error:\x1b[0m\r\n`;
@@ -451,12 +392,4 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
     }
   });
 
-  // Listen for version update events
-  process.on('version-update-available', (versionInfo: VersionInfo) => {
-    const mw = getMainWindow();
-    if (mw && !mw.isDestroyed()) {
-      // Only send to renderer for custom dialog - no native dialogs
-      mw.webContents.send('version:update-available', versionInfo);
-    }
-  });
 } 

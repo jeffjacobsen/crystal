@@ -11,8 +11,6 @@ interface SessionInputProps {
   handleTerminalCommand: () => void;
   handleSendInput: () => void;
   handleContinueConversation: () => void;
-  isStravuConnected: boolean;
-  setShowStravuSearch: (show: boolean) => void;
   ultrathink: boolean;
   setUltrathink: (ultra: boolean) => void;
   handleToggleAutoCommit: () => void;
@@ -27,8 +25,6 @@ export const SessionInput: React.FC<SessionInputProps> = ({
   handleTerminalCommand,
   handleSendInput,
   handleContinueConversation,
-  isStravuConnected,
-  setShowStravuSearch,
   ultrathink,
   setUltrathink,
   handleToggleAutoCommit,
@@ -80,11 +76,6 @@ export const SessionInput: React.FC<SessionInputProps> = ({
             placeholder={placeholder}
             style={{ minHeight: '42px', maxHeight: '200px' }}
           />
-          {isStravuConnected && (
-            <button onClick={() => setShowStravuSearch(true)} className="absolute right-2 top-2 p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 focus:outline-none focus:text-blue-600 transition-colors" title="Search Stravu files">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-            </button>
-          )}
         </div>
         <button 
           onClick={onClickSend} 

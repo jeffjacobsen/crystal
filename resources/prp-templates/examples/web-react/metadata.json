@@ -1,0 +1,57 @@
+{
+  "id": "web-react",
+  "name": "React TypeScript Component",
+  "description": "Create a new React component with TypeScript, following Crystal's component patterns",
+  "version": "1.0.0",
+  "author": "Crystal Team",
+  "category": "frontend",
+  "tags": ["react", "typescript", "component", "frontend", "ui"],
+  "language": "typescript",
+  "framework": "react",
+  "complexity": "medium",
+  "useCase": "Creating new React components, dialogs, forms, or UI features in Crystal's frontend",
+  "prerequisites": {
+    "dependencies": ["react", "typescript", "tailwindcss", "lucide-react"],
+    "knowledge": ["React hooks", "TypeScript", "Tailwind CSS"],
+    "tools": ["pnpm", "vite"]
+  },
+  "variables": [
+    {
+      "name": "COMPONENT_NAME",
+      "description": "Name of the React component (e.g., UserSettings, ProjectCard)",
+      "type": "string",
+      "required": true,
+      "pattern": "^[A-Z][a-zA-Z0-9]*$"
+    },
+    {
+      "name": "COMPONENT_TYPE",
+      "description": "Type of component to create",
+      "type": "enum",
+      "options": ["page", "dialog", "card", "form", "list", "button", "other"],
+      "default": "other"
+    },
+    {
+      "name": "USE_STATE_MANAGEMENT",
+      "description": "Whether this component needs Zustand state management",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "USE_IPC",
+      "description": "Whether this component needs to communicate with the main process",
+      "type": "boolean",
+      "default": false
+    }
+  ],
+  "validation": {
+    "commands": [
+      "pnpm typecheck",
+      "pnpm lint frontend/src/components/{{COMPONENT_NAME}}"
+    ],
+    "requiredFiles": [
+      "frontend/src/components",
+      "frontend/tsconfig.json",
+      "tailwind.config.js"
+    ]
+  }
+}

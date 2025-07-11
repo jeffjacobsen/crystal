@@ -3,9 +3,10 @@ import { X, GitBranch, Terminal, Folder, Zap, MessageSquare, Settings, Bell, His
 interface HelpProps {
   isOpen: boolean;
   onClose: () => void;
+  onShowWelcome?: () => void;
 }
 
-export default function Help({ isOpen, onClose }: HelpProps) {
+export default function Help({ isOpen, onClose, onShowWelcome }: HelpProps) {
   if (!isOpen) return null;
 
   return (
@@ -13,12 +14,25 @@ export default function Help({ isOpen, onClose }: HelpProps) {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Crystal Help</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-          >
-            <X className="h-6 w-6" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {onShowWelcome && (
+              <button
+                onClick={() => {
+                  onShowWelcome();
+                  onClose();
+                }}
+                className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-600 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+              >
+                Show Welcome Screen
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6">
@@ -227,6 +241,10 @@ export default function Help({ isOpen, onClose }: HelpProps) {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700 dark:text-gray-300">Send Input / Continue Conversation</span>
                   <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm">Cmd/Ctrl + Enter</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 dark:text-gray-300">Show Welcome Screen</span>
+                  <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm">Cmd/Ctrl + Shift + W</kbd>
                 </div>
               </div>
             </section>

@@ -56,6 +56,7 @@ export default function ProjectSettings({ project, isOpen, onClose, onUpdate, on
         system_prompt: systemPrompt || null,
         run_script: runScript || null,
         build_script: buildScript || null,
+        // main_branch is now automatically detected
         open_ide_command: openIdeCommand || null,
         worktree_folder: worktreeFolder || null
       });
@@ -172,10 +173,9 @@ export default function ProjectSettings({ project, isOpen, onClose, onUpdate, on
                     {currentBranch || 'Detecting...'}
                   </div>
                   <p className="mt-1 text-xs text-gray-600 dark:text-gray-500">
-                    This is the currently checked out branch in the project directory
+                    The main branch is automatically detected from the project directory
                   </p>
                 </div>
-
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

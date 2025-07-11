@@ -1,0 +1,28 @@
+{
+  "id": "base",
+  "name": "Base Typescript PRP Template",
+  "description": "General-purpose template for any feature development with comprehensive context and validation loops",
+  "version": "2.0.0",
+  "author": "Rasmus Wirasm",
+  "category": "general",
+  "tags": ["general", "flexible", "comprehensive"],
+  "complexity": "medium",
+  "useCase": "Any feature development requiring comprehensive planning and context. Use this when other specialized templates don't fit your needs.",
+  "variables": [
+    {
+      "name": "FEATURE_TYPE",
+      "description": "Type of feature being developed",
+      "type": "enum",
+      "options": ["feature", "enhancement", "refactor", "integration"],
+      "default": "feature",
+      "required": false
+    }
+  ],
+  "validation": {
+    "commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ]
+  }
+}

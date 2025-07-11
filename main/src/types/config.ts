@@ -9,13 +9,17 @@ export interface AppConfig {
   claudeExecutablePath?: string;
   // Permission mode for all sessions
   defaultPermissionMode?: 'approve' | 'ignore';
-  // Auto-check for updates
-  autoCheckUpdates?: boolean;
-  // Stravu MCP integration
-  stravuApiKey?: string;
-  stravuServerUrl?: string;
   // Theme preference
   theme?: 'light' | 'dark';
+  // PRP Template settings
+  customTemplatePaths?: string[];  // Array of paths to scan for templates
+  defaultTemplateId?: string;       // Default template to pre-select
+  defaultPRPPromptTemplate?: string; // Default prompt template when PRP is selected
+  templateSettings?: {
+    enableCustomTemplates: boolean;
+    scanSubdirectories: boolean;
+    cacheTemplates: boolean;
+  };
 }
 
 export interface UpdateConfigRequest {
@@ -24,8 +28,13 @@ export interface UpdateConfigRequest {
   claudeExecutablePath?: string;
   systemPromptAppend?: string;
   defaultPermissionMode?: 'approve' | 'ignore';
-  autoCheckUpdates?: boolean;
-  stravuApiKey?: string;
-  stravuServerUrl?: string;
   theme?: 'light' | 'dark';
+  customTemplatePaths?: string[];
+  defaultTemplateId?: string;
+  defaultPRPPromptTemplate?: string;
+  templateSettings?: {
+    enableCustomTemplates: boolean;
+    scanSubdirectories: boolean;
+    cacheTemplates: boolean;
+  };
 }

@@ -1,0 +1,58 @@
+{
+  "id": "backend-node",
+  "name": "Backend Service & IPC Handler",
+  "description": "Create a new backend service with IPC handlers for Crystal's main process",
+  "version": "1.0.0",
+  "author": "Crystal Team",
+  "category": "backend",
+  "tags": ["node", "typescript", "service", "ipc", "electron"],
+  "language": "typescript",
+  "framework": "electron",
+  "complexity": "medium",
+  "useCase": "Creating backend services, IPC handlers, database operations, or business logic in Crystal's main process",
+  "prerequisites": {
+    "dependencies": ["electron", "better-sqlite3", "typescript"],
+    "knowledge": ["Node.js", "TypeScript", "IPC communication", "SQLite"],
+    "tools": ["pnpm", "electron"]
+  },
+  "variables": [
+    {
+      "name": "SERVICE_NAME",
+      "description": "Name of the service (e.g., UserService, ProjectService)",
+      "type": "string",
+      "required": true,
+      "pattern": "^[A-Z][a-zA-Z0-9]*Service$"
+    },
+    {
+      "name": "IPC_NAMESPACE",
+      "description": "IPC namespace for handlers (e.g., users, projects)",
+      "type": "string",
+      "required": true,
+      "pattern": "^[a-z][a-zA-Z0-9]*$"
+    },
+    {
+      "name": "USE_DATABASE",
+      "description": "Whether this service needs database access",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "NEEDS_MIGRATION",
+      "description": "Whether database schema changes are needed",
+      "type": "boolean",
+      "default": false
+    }
+  ],
+  "validation": {
+    "commands": [
+      "pnpm typecheck",
+      "pnpm lint main/src/services/{{SERVICE_NAME}}.ts",
+      "pnpm lint main/src/ipc/{{IPC_NAMESPACE}}.ts"
+    ],
+    "requiredFiles": [
+      "main/src/services",
+      "main/src/ipc",
+      "main/tsconfig.json"
+    ]
+  }
+}

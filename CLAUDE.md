@@ -1,187 +1,81 @@
-# Crystal - Multi-Session Claude Code Manager
+# CLAUDE.md
 
-Created by [Stravu](https://stravu.com/)
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-Crystal is a fully-implemented Electron desktop application for managing multiple Claude Code instances against a single directory using git worktrees. It provides a streamlined interface for running parallel Claude Code sessions with different approaches to the same problem.
+Crystal is an Electron desktop application for managing multiple Claude Code instances against a single directory using git worktrees. Each session runs in its own git worktree branch, allowing parallel development without conflicts. Crystal provides structured development with Product Requirement Prompts (PRPs) that guide AI-assisted development for longer coding sessions.
 
-## References
-Use these reference pages for more information:
-- How to invoke Claude Code through the command line as an SDK: https://docs.anthropic.com/en/docs/claude-code/sdk
-- How to run multiple Claude Code instances with Git Worktrees: https://docs.anthropic.com/en/docs/claude-code/tutorials#run-parallel-claude-code-sessions-with-git-worktrees
+## Common Development Commands
 
-## Implementation Status: ✅ COMPLETE
+```bash
+# One-time setup (install dependencies, build, and rebuild native modules)
+pnpm run setup
 
-All core features have been successfully implemented with significant enhancements beyond the original requirements.
+# Run in development mode (most common)
+pnpm run dev
+# Or:
+pnpm electron-dev
 
-## ✅ Implemented Features
+# Build commands
+pnpm build              # Build all packages
+pnpm build:frontend     # Build frontend only
+pnpm build:main        # Build main process only
+pnpm typecheck         # Run TypeScript type checking across all packages
+pnpm lint              # Run ESLint across all packages
 
-### Core Session Management
-- **Multi-session support**: Run multiple Claude Code instances simultaneously
-- **Session templates**: Create single or multiple sessions with numbered templates
-- **Session persistence**: SQLite database for persistent sessions across restarts
-- **Session archiving**: Archive sessions instead of permanent deletion
-- **Conversation continuation**: Resume conversations with full history context
-- **Real-time status tracking**: initializing, running, waiting, stopped, error
-- **Automatic session naming**: AI-powered session name generation based on prompts
+# Testing
+pnpm test              # Run Playwright tests
+pnpm test:ui           # Run tests with UI mode
+pnpm test:headed       # Run tests in headed browser
 
-### Git Worktree Integration  
-- **Isolated development**: Each Claude Code session operates in its own git worktree
-- **Conflict prevention**: Prevents conflicts between parallel development efforts
-- **Automatic cleanup**: Worktree cleanup when sessions are deleted
-- **Branch management**: Support for existing branches or creation of new branches
-- **Empty repo handling**: Automatic initial commit for repositories with no commits
+# Production builds
+pnpm build:mac         # Build for macOS (universal binary)
+pnpm build:mac:x64     # Build for macOS x64 only
+pnpm build:mac:arm64   # Build for macOS ARM64 only
+pnpm build:linux       # Build for Linux (deb and AppImage)
 
-### Git Operations
-- **Rebase from main**: Pull latest changes from main branch into worktree
-- **Squash and rebase to main**: Combine all commits and rebase onto main
-- **Diff visualization**: View all changes with syntax highlighting
-- **Commit tracking**: History with statistics (additions, deletions, files changed)
-- **Uncommitted changes**: Detection and display of uncommitted changes
-- **Command preview**: Git command tooltips for transparency
-- **Error handling**: Detailed error dialogs with full git output
-
-### Project Management
-- **Multiple projects**: Support for multiple projects with easy switching
-- **Auto-initialization**: Automatic directory creation and git initialization
-- **Project settings**: Custom prompts, run scripts, main branch configuration
-- **Active project**: Persistent active project selection
-
-### User Interface
-- **Professional terminal**: XTerm.js with 50,000 line scrollback buffer
-- **Multiple view modes**:
-  - Output View: Formatted terminal output with syntax highlighting
-  - Messages View: Raw JSON message inspection for debugging
-  - View Diff View: Git diff viewer with file statistics
-  - Terminal View: Dedicated terminal for running project scripts
-- **Sidebar navigation**: Session list, project selector, prompt history
-- **Real-time updates**: WebSocket-based live output streaming
-- **Status indicators**: Color-coded badges with animations
-- **Unread indicators**: Activity tracking across views
-
-### Prompt Management
-- **Prompt history**: Complete history of all prompts across sessions
-- **Search functionality**: Search prompts and session names
-- **Quick reuse**: One-click prompt reuse for new sessions
-- **Prompt navigation**: Jump to specific prompts within session output
-- **Clipboard support**: Copy prompts to clipboard
-
-### Advanced Terminal Features
-- **Multi-line input**: Auto-resizing textarea with keyboard shortcuts
-- **Smart formatting**: Automatic formatting of JSON messages
-- **Tool call display**: Clear visual structure for Claude's tool usage
-- **Script execution**: Run project scripts with real-time output
-- **Process management**: Start/stop script processes
-
-### Settings & Configuration
-- **Global settings**:
-  - Verbose logging toggle
-  - Anthropic API key configuration
-  - Global system prompt additions
-  - Custom Claude executable path
-- **Notification settings**:
-  - Desktop notifications toggle
-  - Sound notifications with Web Audio API
-  - Customizable triggers (status changes, waiting, completion, errors)
-- **Project-specific settings**:
-  - Custom system prompts per project
-  - Run scripts for testing/building
-  - Main branch customization
-
-### Data Persistence
-- **SQLite Database**:
-  - `projects`: Project configurations and paths
-  - `sessions`: Core session metadata
-  - `session_outputs`: Terminal output history
-  - `conversation_messages`: Conversation history for continuations
-  - `execution_diffs`: Git diff tracking per execution
-  - `prompt_markers`: Navigation markers for prompts
-- **Automatic initialization**: `~/.crystal` directory created on first run
-- **Migration system**: SQL migrations for schema evolution
-- **Electron Store**: Application configuration persistence
-
-### Developer Experience
-- **Task Queue**: Bull queue with optional Redis support
-- **Process Management**: node-pty for Claude Code instances
-- **Error handling**: Comprehensive error reporting and recovery
-- **Performance optimizations**: Lazy loading, debounced updates, caching
-- **Keyboard shortcuts**: Cmd/Ctrl+Enter for input submission
-
-## Technical Stack
-
-### Electron Application
-- **Main Process**: Electron main process with IPC communication
-  - Window management with native OS integration
-  - Electron Store for configuration persistence
-  - IPC handlers for renderer communication
-
-### Frontend (React 19 + TypeScript)
-- **Framework**: React 19 with TypeScript
-- **State Management**: Zustand for reactive state management
-- **UI Styling**: Tailwind CSS utility-first framework
-- **Terminal**: @xterm/xterm professional terminal emulator
-- **Build Tool**: Vite for fast development
-- **Icons**: Lucide React for consistent iconography
-
-### Backend Services (Integrated in Main Process)
-- **Runtime**: Node.js with TypeScript
-- **API Server**: Express.js embedded server on port 3001
-- **Database**: Better-SQLite3 for synchronous operations
-- **Task Queue**: Bull with in-memory queue for Electron
-- **Claude Integration**: @anthropic-ai/claude-code SDK
-- **Process Management**: node-pty for PTY processes
-- **Git Integration**: Command-line git worktree management
-
-### Communication
-- **Electron IPC**: Secure inter-process communication
-- **WebSockets**: Socket.io for real-time updates (development mode)
-- **RESTful API**: Express endpoints for CRUD operations
-
-## Architecture
-
+# If developing Crystal with Crystal
+# Set this as your run script in Crystal project settings:
+pnpm run setup && CRYSTAL_DIR=~/.crystal_test pnpm electron-dev
 ```
-┌─────────────────────────────────────────────────────────┐
-│              Electron Desktop Application                │
-├─────────────────────────────────────────────────────────┤
-│             Renderer Process (Frontend)                  │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌────────────┐  │
-│  │    Sidebar      │ │   Terminal      │ │   Help     │  │
-│  │   (Sessions)    │ │   (XTerm.js)    │ │  Dialog    │  │
-│  └─────────────────┘ └─────────────────┘ └────────────┘  │
-├─────────────────────────────────────────────────────────┤
-│          IPC Communication / WebSocket (dev)             │
-├─────────────────────────────────────────────────────────┤
-│              Main Process (Electron + Node.js)           │
-│ ┌──────────────┐ ┌──────────────┐ ┌───────────────────┐  │
-│ │   Express    │ │  Task Queue  │ │   Session        │  │
-│ │   Server     │ │    (Bull)    │ │   Manager        │  │
-│ └──────────────┘ └──────────────┘ └───────────────────┘  │
-│ ┌──────────────┐ ┌──────────────┐ ┌───────────────────┐  │
-│ │  Worktree    │ │ Claude Code  │ │   Config         │  │
-│ │  Manager     │ │   Manager    │ │   Manager        │  │
-│ └──────────────┘ └──────────────┘ └───────────────────┘  │
-│ ┌──────────────┐ ┌──────────────┐ ┌───────────────────┐  │
-│ │ IPC Handlers │ │    Event     │ │   Git Diff       │  │
-│ │(git,session) │ │   Manager    │ │   Manager        │  │
-│ └──────────────┘ └──────────────┘ └───────────────────┘  │
-├─────────────────────────────────────────────────────────┤
-│            Better-SQLite3 Database                       │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │
-│  │  sessions   │ │session_     │ │conversation_        │ │
-│  │   table     │ │outputs      │ │messages             │ │
-│  └─────────────┘ └─────────────────┘ └─────────────────────┘ │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │
-│  │execution_   │ │prompt_      │ │ projects            │ │
-│  │diffs        │ │markers      │ │                     │ │
-│  └─────────────┘ └─────────────┘ └─────────────────────┘ │
-├─────────────────────────────────────────────────────────┤
-│         Claude Code SDK Instances (node-pty)             │
-│              ┌─────────────────────────────┐              │
-│              │     Git Worktrees           │              │
-│              └─────────────────────────────┘              │
-└─────────────────────────────────────────────────────────┘
-```
+
+## High-Level Architecture
+
+Crystal uses a multi-process Electron architecture with clear separation of concerns:
+
+### Process Architecture
+- **Main Process** (Electron + Node.js):
+  - Manages Claude Code instances via @anthropic-ai/claude-code SDK
+  - Handles git worktree operations for isolated development branches
+  - SQLite database for persistent session and output storage
+  - Express server on port 3001 for API endpoints (development mode)
+  - IPC handlers for secure communication with renderer
+
+- **Renderer Process** (React 19):
+  - React with Zustand for state management
+  - XTerm.js for terminal emulation with 50,000 line scrollback
+  - Real-time updates via IPC events and WebSocket (dev mode)
+  - Multiple views: Output, Messages, Diff, Terminal
+
+### Key Architectural Patterns
+
+1. **Git Worktree Isolation**: Each Claude session runs in its own git worktree, preventing conflicts between parallel development efforts.
+
+2. **Session Lifecycle**:
+   - Session creation → Git worktree setup → Claude Code process spawn
+   - Real-time output streaming → Database persistence → Frontend display
+   - Session archiving → Worktree cleanup
+
+3. **State Management**:
+   - Database as single source of truth for session data
+   - Targeted state updates via IPC events (avoid global refreshes)
+   - Frontend state synced with backend through event-driven architecture
+
+4. **Data Flow**:
+   - User input → IPC → Main process → Claude Code instance
+   - Claude output → Database storage → IPC/WebSocket → Frontend display
+   - Git operations → Command execution → Result parsing → UI updates
 
 ## Critical Implementation Details
 
@@ -531,163 +425,100 @@ The issue is typically caused by parent containers having `overflow-hidden` whic
 
 The react-diff-viewer-continued library uses emotion/styled-components internally, which makes CSS overrides unreliable. The best approach is to ensure proper overflow handling in parent containers and keep the diff viewer wrapper simple.
 
-## API Endpoints
+### Product Requirement Prompts (PRP) System
 
-### Session Management
-- `GET /api/sessions` - List all sessions with status
-- `POST /api/sessions` - Create new session(s) with templates
-- `GET /api/sessions/:id` - Get specific session details
-- `DELETE /api/sessions/:id` - Archive session and cleanup worktree
+Crystal includes a comprehensive PRP system for structured development:
 
-### Session Interaction  
-- `POST /api/sessions/:id/input` - Send input to Claude Code instance
-- `POST /api/sessions/:id/continue` - Continue conversation with full history
-- `GET /api/sessions/:id/output` - Retrieve session output history
-- `GET /api/sessions/:id/conversation` - Get conversation message history
+#### Key Components:
+- **PRP Templates**: Pre-built templates for common development patterns (React components, backend services, bug fixes)
+- **AI-Assisted Generation**: Uses Claude Code CLI to generate PRPs from templates
+- **Version Control**: Track PRP changes over time
+- **Session Integration**: PRPs are included in session context to guide development
 
-### Configuration
-- `GET /api/config` - Get current application configuration
-- `POST /api/config` - Update configuration settings
+#### PRP Workflow:
+1. **Create/Select PRP**: Use existing PRP or generate new one from templates
+2. **Generate with AI**: Provide feature request and codebase path for context-aware generation
+3. **Edit and Refine**: Use the rich Markdown editor to customize
+4. **Attach to Session**: Select PRP when creating new session
+5. **Guided Development**: PRP content guides Claude through structured implementation
 
-### Project Management
-- `GET /api/projects` - List all projects
-- `POST /api/projects` - Create new project (with automatic directory/git init)
-- `GET /api/projects/:id` - Get project details
-- `PUT /api/projects/:id` - Update project settings
-- `POST /api/projects/:id/activate` - Set active project
-- `DELETE /api/projects/:id` - Delete project
+#### Template System:
+- Located in `resources/prp-templates/`
+- Each template has `metadata.json` and `template.md`
+- Supports variable substitution (backend implemented, frontend UI pending)
+- Templates include research instructions and structured prompts
 
-### Prompt Management
-- `GET /api/prompts` - Get all prompts with associated sessions
-- `GET /api/prompts/:sessionId/:lineNumber` - Navigate to specific prompt
+See `/docs/PRP-TEMPLATE-SYSTEM.md` for detailed documentation.
 
-## Development Workflow
+### Recent Architectural Changes
 
-1. **Session Creation**: User provides prompt and worktree template via dialog
-2. **Worktree Setup**: Backend creates new git worktree using `git worktree add`
-3. **Claude Instance**: Spawns Claude Code process in worktree using node-pty
-4. **Database Storage**: Session metadata and output stored in SQLite
-5. **Real-time Updates**: WebSocket streams session status and terminal output
-6. **Session Management**: Users can switch between sessions, continue conversations
+#### Removed Features:
+- **Stravu Integration**: All cloud file search functionality removed
+- **Version Update Checking**: No longer checks for upstream updates
+- **Discord Integration**: Discord popup and related functionality removed
+- **API Key Dependency**: Now uses Claude Code for session name generation
 
-## Available Commands
+#### Simplified Components:
+- **Welcome Screen**: Now focused solely on Claude setup, auto-tests on mount
+- **Session Creation**: Streamlined UI with PRP selection as primary feature
+- **PRP Management**: Single active PRP model (removed complex activation logic)
 
-```bash
-# One-time setup (install, build, and rebuild native modules)
-pnpm run setup
-
-# Run as Electron app in development mode
-pnpm electron-dev
-# Or use the shorthand:
-pnpm run dev
-
-# Run frontend only (without Electron shell)
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Type checking
-pnpm typecheck
-
-# Linting
-pnpm lint
-```
-
-**Note:** You must run `pnpm run build:main` at least once before running `pnpm electron-dev` to compile the main process.
-
-### Building Packaged Electron App
-
-```bash
-# Build for macOS
-pnpm build:mac    # macOS (only works on macOS)
-```
 
 ## Project Structure
 
 ```
 crystal/
-├── frontend/         # React renderer process
+├── frontend/               # React renderer process
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   │   ├── Help.tsx    # Help dialog
-│   │   │   └── ...        # Other UI components
-│   │   ├── hooks/          # Custom React hooks
-│   │   │   └── useSessionView.ts # Session view logic (941 lines)
-│   │   ├── stores/         # Zustand state stores
-│   │   └── utils/          # Utility functions
-├── main/            # Electron main process
+│   │   ├── components/     # UI components (SessionView, Help, PRP*, etc.)
+│   │   ├── hooks/         # Custom hooks (useSessionView - session logic)
+│   │   ├── stores/        # Zustand stores for state management
+│   │   └── utils/         # Utilities including timestampUtils
+├── main/                  # Electron main process
 │   ├── src/
-│   │   ├── index.ts         # Main entry point (reduced to 414 lines)
-│   │   ├── preload.ts       # Preload script
-│   │   ├── events.ts        # Event handling (359 lines)
-│   │   ├── database/        # SQLite database
-│   │   ├── ipc/            # IPC handlers (modular)
-│   │   │   ├── git.ts      # Git operation handlers (843 lines)
-│   │   │   ├── session.ts  # Session operation handlers (428 lines)
-│   │   │   └── ...         # Other IPC handlers
-│   │   ├── services/        # Business logic services
-│   │   │   ├── taskQueue.ts # Bull queue for async tasks
-│   │   │   └── ...         # Other service modules
-│   │   ├── routes/          # API routes
-│   │   └── types/           # TypeScript types
-│   └── dist/               # Compiled output
-├── shared/          # Shared TypeScript types
-├── dist-electron/   # Packaged Electron app
-├── package.json     # Root workspace configuration
-└── pnpm-workspace.yaml
+│   │   ├── index.ts       # Main entry (414 lines - Electron setup)
+│   │   ├── events.ts      # Event coordination (359 lines)
+│   │   ├── ipc/          # IPC handlers (modularized)
+│   │   │   ├── git.ts    # Git operations (843 lines)
+│   │   │   ├── session.ts # Session management (428 lines)
+│   │   │   ├── prp.ts    # PRP operations
+│   │   │   └── documents.ts # Document management
+│   │   ├── database/      # SQLite database and migrations
+│   │   ├── services/      # Business logic (Claude, worktree, PRP, templates)
+│   │   └── utils/         # Backend utilities
+├── shared/                # Shared TypeScript types
+└── tests/                 # Playwright E2E tests
 ```
 
-## User Guide
+## Database Schema
 
-### Quick Start
-1. **Create/Select Project**: Choose a project directory or create a new one
-2. **Create Session**: Click "Create Session" and enter a prompt
-3. **Parallel Sessions**: Run multiple sessions for different approaches
-4. **View Results**: Switch between Output, View Diff, and Terminal views
+Key tables:
+- `projects`: Project configurations and paths
+- `sessions`: Core session metadata with status tracking
+- `session_outputs`: Raw terminal output storage
+- `conversation_messages`: Full conversation history for continuations
+- `execution_diffs`: Git diff snapshots per execution
+- `prompt_markers`: Prompt timestamps and navigation markers
+- `product_requirement_prompts`: PRP storage with versioning
+- `prp_versions`: Version history for PRPs
+- `documents`: Local documentation references
+- `session_prp`: Links sessions to PRPs
+- `session_documents`: Links sessions to documents
 
-### Using the Help System
-- Click the **?** button in the sidebar to open the comprehensive help dialog
-- The help dialog covers all features, keyboard shortcuts, and tips
+## IPC Communication
 
-### Session States Explained
-- 🟢 **Initializing**: Setting up git worktree
-- 🟢 **Running**: Claude is actively processing
-- 🟡 **Waiting**: Needs your input
-- ⚪ **Completed**: Task finished successfully
-- 🔵 **New Activity**: Session has new unviewed results
-- 🔴 **Error**: Something went wrong
+Main IPC channels:
+- `git:*` - Git operations (rebase, squash, diff)
+- `sessions:*` - Session lifecycle (create, update, delete, continue)
+- `projects:*` - Project management
+- `config:*` - Settings and configuration
+- `mcp:*` - MCP tool permissions
+- `prp:*` - Product Requirement Prompt operations
+- `documents:*` - Documentation management
+- `prp-generation:*` - AI-assisted PRP generation
 
-### Git Operations
-- **Rebase from main**: Updates your worktree with latest main branch changes
-- **Squash and rebase**: Combines all commits and rebases onto main
-- Always preview commands with tooltips before executing
-
-### Best Practices
-1. Use descriptive prompts for better AI-generated session names
-2. Create multiple sessions to explore different solutions
-3. Review View Diff tab before git operations
-4. Use Terminal tab to run tests after changes
-5. Archive completed sessions to keep the list manageable
-6. Set up project-specific prompts for consistency
-
-## Troubleshooting
-
-### Common Issues
-1. **Session won't start**: Check if git repository is initialized
-2. **Git operations fail**: Ensure no uncommitted changes conflict
-3. **Terminal not responding**: Check if Claude Code is installed correctly
-4. **Notifications not working**: Grant permission when prompted
-
-### Debug Mode
-Enable verbose logging in Settings to see detailed logs for troubleshooting.
-
-## Disclaimer
-
-Crystal is an independent project created by [Stravu](https://stravu.com/). Claude™ is a trademark of Anthropic, PBC. Crystal is not affiliated with, endorsed by, or sponsored by Anthropic. This tool is designed to work with Claude Code, which must be installed separately.
-
-## important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+Events emitted:
+- `session:created/updated/deleted` - Session state changes
+- `session:output` - Real-time output streaming
+- `git:operation-complete` - Git operation results
+- `prp-generation:progress` - Real-time PRP generation updates

@@ -52,8 +52,6 @@ export const useSessionView = (
   const [dialogType, setDialogType] = useState<'rebase' | 'squash'>('rebase');
   const [showGitErrorDialog, setShowGitErrorDialog] = useState(false);
   const [gitErrorDetails, setGitErrorDetails] = useState<GitErrorDetails | null>(null);
-  const [showStravuSearch, setShowStravuSearch] = useState(false);
-  const [isStravuConnected, setIsStravuConnected] = useState(false);
   const [shouldSquash, setShouldSquash] = useState(true);
   const [isWaitingForFirstOutput, setIsWaitingForFirstOutput] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -657,27 +655,6 @@ export const useSessionView = (
       }
     }
   }, [viewMode, scriptTerminalRef, initTerminal, activeSession]);
-  
-
-
-  useEffect(() => {
-    const checkStravuConnection = async () => {
-      try {
-        const response = await API.stravu.getConnectionStatus();
-        setIsStravuConnected(response.success && response.data.status === 'connected');
-      } catch (err) {
-        setIsStravuConnected(false);
-      }
-    };
-    checkStravuConnection();
-    // Use visibility-aware interval for Stravu connection checking
-    const cleanup = createVisibilityAwareInterval(
-      checkStravuConnection,
-      30000, // 30 seconds when visible
-      120000 // 2 minutes when not visible
-    );
-    return cleanup;
-  }, [activeSessionId]);
 
   useEffect(() => {
     if (!scriptTerminalInstance.current || !activeSession) return;
@@ -725,13 +702,7 @@ export const useSessionView = (
             console.log(`[Terminal Write Effect] Writing buffered output after init`);
             terminalInstance.current.write(formattedOutput);
             lastProcessedOutputLength.current = formattedOutput.length;
-            // Only auto-scroll if user is already at the bottom
-            const buffer = terminalInstance.current.buffer.active;
-            const isAtBottom = buffer.viewportY >= buffer.length - terminalInstance.current.rows;
-            
-            if (isAtBottom) {
-              terminalInstance.current.scrollToBottom();
-            }
+            terminalInstance.current.scrollToBottom();
           }
         }, 100);
       }
@@ -768,13 +739,7 @@ export const useSessionView = (
     }
     
     if (formattedOutput.length > 0) {
-      // Only auto-scroll if user is already at the bottom
-      const buffer = terminalInstance.current.buffer.active;
-      const isAtBottom = buffer.viewportY >= buffer.length - terminalInstance.current.rows;
-      
-      if (isAtBottom) {
-        terminalInstance.current.scrollToBottom();
-      }
+      terminalInstance.current.scrollToBottom();
     }
   }, [formattedOutput, currentSessionIdForOutput, initTerminal, terminalRef, viewMode]);
 
@@ -789,15 +754,9 @@ export const useSessionView = (
       const newOutput = fullScriptOutput.substring(lastProcessedScriptOutputLength.current);
       scriptTerminalInstance.current.write(newOutput);
       lastProcessedScriptOutputLength.current = fullScriptOutput.length;
-      // Only auto-scroll if user is already at the bottom
-      const buffer = scriptTerminalInstance.current.buffer.active;
-      const isAtBottom = buffer.viewportY >= buffer.length - scriptTerminalInstance.current.rows;
-      
-      if (isAtBottom) {
-        scriptTerminalInstance.current.scrollToBottom();
-      }
+      scriptTerminalInstance.current.scrollToBottom();
     }
-  }, [scriptOutput, activeSessionId]);
+  }, [scriptOutput, activeSession]);
 
   useEffect(() => {
     // Listen for session deletion events
@@ -1305,11 +1264,6 @@ export const useSessionView = (
   const handleOpenIDE = async () => {
     if(activeSession) await API.sessions.openIDE(activeSession.id);
   };
-  
-  const handleStravuFileSelect = (file: any, content: string) => {
-    const formattedContent = `\n\n## File: ${file.name}\n\`\`\`${file.type}\n${content}\n\`\`\`\n\n`;
-    setInput(prev => prev + formattedContent);
-  };
 
   const formatElapsedTime = (seconds: number): string => {
     const h = Math.floor(seconds / 3600);
@@ -1428,9 +1382,6 @@ export const useSessionView = (
     showGitErrorDialog,
     setShowGitErrorDialog,
     gitErrorDetails,
-    showStravuSearch,
-    setShowStravuSearch,
-    isStravuConnected,
     shouldSquash,
     setShouldSquash,
     isWaitingForFirstOutput,
@@ -1448,7 +1399,6 @@ export const useSessionView = (
     handleSquashAndRebaseToMain,
     performSquashWithCommitMessage,
     handleOpenIDE,
-    handleStravuFileSelect,
     formatElapsedTime,
     handleStartEditName,
     handleSaveEditName,

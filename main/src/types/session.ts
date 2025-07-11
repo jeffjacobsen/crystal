@@ -30,6 +30,8 @@ export interface CreateSessionRequest {
   projectId?: number;
   baseBranch?: string;
   autoCommit?: boolean;
+  documentIds?: number[];
+  prpId?: number;
 }
 
 export interface SessionUpdate {

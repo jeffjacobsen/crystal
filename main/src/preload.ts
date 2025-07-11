@@ -19,16 +19,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPlatform: () => ipcRenderer.invoke('get-platform'),
   isPackaged: () => ipcRenderer.invoke('is-packaged'),
 
-  // Version checking
-  checkForUpdates: (): Promise<IPCResponse> => ipcRenderer.invoke('version:check-for-updates'),
-  getVersionInfo: (): Promise<IPCResponse> => ipcRenderer.invoke('version:get-info'),
-  
-  // Auto-updater
-  updater: {
-    checkAndDownload: (): Promise<IPCResponse> => ipcRenderer.invoke('updater:check-and-download'),
-    downloadUpdate: (): Promise<IPCResponse> => ipcRenderer.invoke('updater:download-update'),
-    installUpdate: (): Promise<IPCResponse> => ipcRenderer.invoke('updater:install-update'),
-  },
 
   // System utilities
   openExternal: (url: string): Promise<IPCResponse> => ipcRenderer.invoke('openExternal', url),
@@ -131,6 +121,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   config: {
     get: (): Promise<IPCResponse> => ipcRenderer.invoke('config:get'),
     update: (updates: any): Promise<IPCResponse> => ipcRenderer.invoke('config:update', updates),
+    testClaude: (customPath?: string): Promise<IPCResponse> => ipcRenderer.invoke('config:test-claude', customPath),
   },
 
   // Prompts
@@ -151,15 +142,52 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getPending: (): Promise<IPCResponse> => ipcRenderer.invoke('permission:getPending'),
   },
 
-  // Stravu OAuth integration
-  stravu: {
-    getConnectionStatus: (): Promise<IPCResponse> => ipcRenderer.invoke('stravu:get-connection-status'),
-    initiateAuth: (): Promise<IPCResponse> => ipcRenderer.invoke('stravu:initiate-auth'),
-    checkAuthStatus: (sessionId: string): Promise<IPCResponse> => ipcRenderer.invoke('stravu:check-auth-status', sessionId),
-    disconnect: (): Promise<IPCResponse> => ipcRenderer.invoke('stravu:disconnect'),
-    getNotebooks: (): Promise<IPCResponse> => ipcRenderer.invoke('stravu:get-notebooks'),
-    getNotebook: (notebookId: string): Promise<IPCResponse> => ipcRenderer.invoke('stravu:get-notebook', notebookId),
-    searchNotebooks: (query: string, limit?: number): Promise<IPCResponse> => ipcRenderer.invoke('stravu:search-notebooks', query, limit),
+
+  // Document management
+  documents: {
+    getAll: (projectId: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:get-all', projectId),
+    get: (documentId: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:get', documentId),
+    create: (projectId: number, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string): Promise<IPCResponse> => 
+      ipcRenderer.invoke('documents:create', projectId, title, content, category, tags, filePath, url),
+    update: (documentId: number, updates: any): Promise<IPCResponse> => ipcRenderer.invoke('documents:update', documentId, updates),
+    delete: (documentId: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:delete', documentId),
+    search: (projectId: number, query: string, limit?: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:search', projectId, query, limit),
+  },
+
+  // PRP (Product Requirement Prompt) management
+  prp: {
+    get: (prpId: number): Promise<IPCResponse> => ipcRenderer.invoke('prp:get', prpId),
+    getAll: (projectId: number): Promise<IPCResponse> => ipcRenderer.invoke('prp:get-all', projectId),
+    create: (projectId: number, title: string, content: string): Promise<IPCResponse> => ipcRenderer.invoke('prp:create', projectId, title, content),
+    update: (prpId: number, content: string, createNewVersion?: boolean): Promise<IPCResponse> => ipcRenderer.invoke('prp:update', prpId, content, createNewVersion),
+    delete: (prpId: number): Promise<IPCResponse> => ipcRenderer.invoke('prp:delete', prpId),
+    generateFromTemplate: (request: {
+      templateId: string;
+      featureRequest: string;
+      additionalContext?: string;
+      codebasePath?: string;
+      variables?: Record<string, any>;
+      streamProgress?: boolean;
+    }): Promise<IPCResponse> => ipcRenderer.invoke('prp:generate-from-template', request),
+    getTemplates: (): Promise<IPCResponse> => ipcRenderer.invoke('prp:get-templates'),
+    validateTemplate: (templatePath: string): Promise<IPCResponse> => ipcRenderer.invoke('prp:validate-template', templatePath),
+    reloadTemplates: (customPaths?: string[]): Promise<IPCResponse> => ipcRenderer.invoke('prp:reload-templates', customPaths),
+  },
+
+  // PRD management (legacy for backward compatibility)
+  prd: {
+    getActive: (projectId: number): Promise<IPCResponse> => ipcRenderer.invoke('prd:get-active', projectId),
+    get: (prdId: number): Promise<IPCResponse> => ipcRenderer.invoke('prd:get', prdId),
+    create: (projectId: number, title: string, content: string): Promise<IPCResponse> => ipcRenderer.invoke('prd:create', projectId, title, content),
+    update: (prdId: number, content: string, createNewVersion?: boolean): Promise<IPCResponse> => ipcRenderer.invoke('prd:update', prdId, content, createNewVersion),
+  },
+
+  // Session document associations
+  sessionDocuments: {
+    add: (sessionId: string, documentIds: number[]): Promise<IPCResponse> => ipcRenderer.invoke('session-documents:add', sessionId, documentIds),
+    addPRP: (sessionId: string, prpId: number, prpVersion: number): Promise<IPCResponse> => ipcRenderer.invoke('session-documents:add-prp', sessionId, prpId, prpVersion),
+    addPRD: (sessionId: string, prdId: number, prdVersion: number): Promise<IPCResponse> => ipcRenderer.invoke('session-documents:add-prd', sessionId, prdId, prdVersion),
+    get: (sessionId: string): Promise<IPCResponse> => ipcRenderer.invoke('session-documents:get', sessionId),
   },
 
   // UI State management
@@ -246,50 +274,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => ipcRenderer.removeListener('main-log', wrappedCallback);
     },
 
-    // Version updates
-    onVersionUpdateAvailable: (callback: (versionInfo: any) => void) => {
-      const wrappedCallback = (_event: any, versionInfo: any) => callback(versionInfo);
-      ipcRenderer.on('version:update-available', wrappedCallback);
-      return () => ipcRenderer.removeListener('version:update-available', wrappedCallback);
-    },
     
-    // Auto-updater events
-    onUpdaterCheckingForUpdate: (callback: () => void) => {
-      const wrappedCallback = (_event: any) => callback();
-      ipcRenderer.on('updater:checking-for-update', wrappedCallback);
-      return () => ipcRenderer.removeListener('updater:checking-for-update', wrappedCallback);
-    },
-    onUpdaterUpdateAvailable: (callback: (info: any) => void) => {
-      const wrappedCallback = (_event: any, info: any) => callback(info);
-      ipcRenderer.on('updater:update-available', wrappedCallback);
-      return () => ipcRenderer.removeListener('updater:update-available', wrappedCallback);
-    },
-    onUpdaterUpdateNotAvailable: (callback: (info: any) => void) => {
-      const wrappedCallback = (_event: any, info: any) => callback(info);
-      ipcRenderer.on('updater:update-not-available', wrappedCallback);
-      return () => ipcRenderer.removeListener('updater:update-not-available', wrappedCallback);
-    },
-    onUpdaterDownloadProgress: (callback: (progressInfo: any) => void) => {
-      const wrappedCallback = (_event: any, progressInfo: any) => callback(progressInfo);
-      ipcRenderer.on('updater:download-progress', wrappedCallback);
-      return () => ipcRenderer.removeListener('updater:download-progress', wrappedCallback);
-    },
-    onUpdaterUpdateDownloaded: (callback: (info: any) => void) => {
-      const wrappedCallback = (_event: any, info: any) => callback(info);
-      ipcRenderer.on('updater:update-downloaded', wrappedCallback);
-      return () => ipcRenderer.removeListener('updater:update-downloaded', wrappedCallback);
-    },
-    onUpdaterError: (callback: (error: any) => void) => {
-      const wrappedCallback = (_event: any, error: any) => callback(error);
-      ipcRenderer.on('updater:error', wrappedCallback);
-      return () => ipcRenderer.removeListener('updater:error', wrappedCallback);
-    },
     
     // Process management events
     onZombieProcessesDetected: (callback: (data: any) => void) => {
       const wrappedCallback = (_event: any, data: any) => callback(data);
       ipcRenderer.on('zombie-processes-detected', wrappedCallback);
       return () => ipcRenderer.removeListener('zombie-processes-detected', wrappedCallback);
+    },
+    
+    // PRP generation events
+    onPRPGenerationProgress: (callback: (progress: any) => void) => {
+      const wrappedCallback = (_event: any, progress: any) => callback(progress);
+      ipcRenderer.on('prp:generation-progress', wrappedCallback);
+      return () => ipcRenderer.removeListener('prp:generation-progress', wrappedCallback);
     },
   },
 
@@ -304,13 +302,13 @@ contextBridge.exposeInMainWorld('electron', {
   openExternal: (url: string) => ipcRenderer.invoke('openExternal', url),
   invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
   on: (channel: string, callback: (...args: any[]) => void) => {
-    const validChannels = ['permission:request'];
+    const validChannels = ['permission:request', 'prp:generation-progress'];
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (_event, ...args) => callback(...args));
     }
   },
   off: (channel: string, callback: (...args: any[]) => void) => {
-    const validChannels = ['permission:request'];
+    const validChannels = ['permission:request', 'prp:generation-progress'];
     if (validChannels.includes(channel)) {
       ipcRenderer.removeListener(channel, callback);
     }

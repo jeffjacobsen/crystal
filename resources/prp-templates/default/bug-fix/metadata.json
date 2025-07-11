@@ -1,0 +1,38 @@
+{
+  "id": "bug-fix",
+  "name": "Bug Fix Investigation",
+  "description": "Systematic bug fixing with root cause analysis and prevention",
+  "version": "1.0.0",
+  "author": "Crystal Team",
+  "category": "maintenance",
+  "tags": ["bug", "fix", "debug", "troubleshooting"],
+  "complexity": "low",
+  "useCase": "Fixing bugs, investigating issues, preventing regressions, and debugging problems in Crystal",
+  "prerequisites": {
+    "knowledge": ["Debugging techniques", "Crystal architecture", "Error handling patterns"],
+    "tools": ["pnpm", "electron", "chrome devtools"]
+  },
+  "variables": [
+    {
+      "name": "BUG_TYPE",
+      "description": "Type of bug being fixed",
+      "type": "enum",
+      "options": ["crash", "ui", "logic", "performance", "data"],
+      "default": "logic",
+      "required": false
+    },
+    {
+      "name": "WRITE_TESTS",
+      "description": "Whether to write tests for the fix",
+      "type": "boolean",
+      "default": true
+    }
+  ],
+  "validation": {
+    "commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ]
+  }
+}

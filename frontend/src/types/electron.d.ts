@@ -17,16 +17,6 @@ interface ElectronAPI {
   getPlatform: () => Promise<string>;
   isPackaged: () => Promise<boolean>;
 
-  // Version checking
-  checkForUpdates: () => Promise<IPCResponse>;
-  getVersionInfo: () => Promise<IPCResponse>;
-  
-  // Auto-updater
-  updater: {
-    checkAndDownload: () => Promise<IPCResponse>;
-    downloadUpdate: () => Promise<IPCResponse>;
-    installUpdate: () => Promise<IPCResponse>;
-  };
 
   // System utilities
   openExternal: (url: string) => Promise<void>;
@@ -131,6 +121,12 @@ interface ElectronAPI {
   config: {
     get: () => Promise<IPCResponse>;
     update: (updates: any) => Promise<IPCResponse>;
+    testClaude: (customPath?: string) => Promise<IPCResponse<{
+      available: boolean;
+      version?: string;
+      path?: string;
+      error?: string;
+    }>>;
   };
 
   // Prompts
@@ -151,15 +147,51 @@ interface ElectronAPI {
     getPending: () => Promise<IPCResponse>;
   };
 
-  // Stravu MCP integration with OAuth
-  stravu: {
-    getConnectionStatus: () => Promise<IPCResponse>;
-    initiateAuth: () => Promise<IPCResponse>;
-    checkAuthStatus: (sessionId: string) => Promise<IPCResponse>;
-    disconnect: () => Promise<IPCResponse>;
-    getNotebooks: () => Promise<IPCResponse>;
-    getNotebook: (notebookId: string) => Promise<IPCResponse>;
-    searchNotebooks: (query: string, limit?: number) => Promise<IPCResponse>;
+
+  // Document management
+  documents: {
+    getAll: (projectId: number) => Promise<IPCResponse>;
+    get: (documentId: number) => Promise<IPCResponse>;
+    create: (projectId: number, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) => Promise<IPCResponse>;
+    update: (documentId: number, updates: any) => Promise<IPCResponse>;
+    delete: (documentId: number) => Promise<IPCResponse>;
+    search: (projectId: number, query: string, limit?: number) => Promise<IPCResponse>;
+  };
+
+  // PRP (Product Requirement Prompt) management
+  prp: {
+    get: (prpId: number) => Promise<IPCResponse>;
+    getAll: (projectId?: number) => Promise<IPCResponse>;
+    create: (projectId: number, title: string, content: string) => Promise<IPCResponse>;
+    update: (prpId: number, content: string, createNewVersion?: boolean) => Promise<IPCResponse>;
+    delete: (prpId: number) => Promise<IPCResponse>;
+    generateFromTemplate: (request: {
+      templateId: string;
+      featureRequest: string;
+      additionalContext?: string;
+      codebasePath?: string;
+      variables?: Record<string, any>;
+      streamProgress?: boolean;
+    }) => Promise<IPCResponse>;
+    getTemplates: () => Promise<IPCResponse>;
+    validateTemplate: (templatePath: string) => Promise<IPCResponse>;
+    reloadTemplates: (customPaths?: string[]) => Promise<IPCResponse>;
+  };
+
+  // PRD management (legacy for backward compatibility)
+  prd: {
+    getActive: (projectId: number) => Promise<IPCResponse>;
+    get: (prdId: number) => Promise<IPCResponse>;
+    create: (projectId: number, title: string, content: string) => Promise<IPCResponse>;
+    update: (prdId: number, content: string, createNewVersion?: boolean) => Promise<IPCResponse>;
+  };
+
+  // Session document associations
+  sessionDocuments: {
+    add: (sessionId: string, documentIds: number[]) => Promise<IPCResponse>;
+    addPRP: (sessionId: string, prpId: number, prpVersion: number) => Promise<IPCResponse>;
+    addPRD: (sessionId: string, prdId: number, prdVersion: number) => Promise<IPCResponse>;
+    get: (sessionId: string) => Promise<IPCResponse>;
   };
 
   // UI State management
@@ -189,18 +221,17 @@ interface ElectronAPI {
     
     onScriptOutput: (callback: (output: any) => void) => () => void;
     onMainLog: (callback: (level: string, message: string) => void) => () => void;
-    onVersionUpdateAvailable: (callback: (versionInfo: any) => void) => () => void;
-    
-    // Auto-updater events
-    onUpdaterCheckingForUpdate: (callback: () => void) => () => void;
-    onUpdaterUpdateAvailable: (callback: (info: any) => void) => () => void;
-    onUpdaterUpdateNotAvailable: (callback: (info: any) => void) => () => void;
-    onUpdaterDownloadProgress: (callback: (progressInfo: any) => void) => () => void;
-    onUpdaterUpdateDownloaded: (callback: (info: any) => void) => () => void;
-    onUpdaterError: (callback: (error: any) => void) => () => void;
     
     // Process management events
     onZombieProcessesDetected: (callback: (data: { sessionId?: string | null; pids?: number[]; message: string }) => void) => () => void;
+    
+    // PRP generation events
+    onPRPGenerationProgress: (callback: (progress: {
+      stage: 'starting' | 'processing' | 'finalizing' | 'complete' | 'error';
+      message: string;
+      progress: number;
+      metadata?: any;
+    }) => void) => () => void;
     
     removeAllListeners: (channel: string) => void;
   };

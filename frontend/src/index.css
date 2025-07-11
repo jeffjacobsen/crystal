@@ -1,9 +1,9 @@
+/* Import markdown styles - must come before @tailwind directives */
+@import './styles/markdown.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import markdown styles */
-@import './styles/markdown.css';
 
 /* Ensure proper overflow handling */
 html, body, #root {
@@ -17,14 +17,14 @@ body {
   overflow: hidden;
 }
 
-/* Light mode body colors */
+/* Dark mode by default */
 body {
-  @apply bg-white text-gray-900;
+  @apply bg-gray-900 text-gray-100;
 }
 
-/* Dark mode body colors */
-body.dark {
-  @apply bg-gray-900 text-gray-100;
+/* Light mode when explicitly set */
+body.light {
+  @apply bg-white text-gray-900;
 }
 
 /* Scrollbar styling */

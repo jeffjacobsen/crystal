@@ -1,11 +1,11 @@
 {
   "name": "crystal",
-  "version": "0.1.13",
+  "version": "0.1.12",
   "private": true,
-  "description": "Crystal - Claude Code Commander for managing multiple Claude Code instances",
+  "description": "Crystal - Multi-Session Development Environment for Claude Code with PRD support",
   "author": {
     "name": "Crystal Team",
-    "email": "jordan@stravu.com"
+    "email": "contact@crystal-dev.com"
   },
   "license": "MIT",
   "main": "main/dist/index.js",
@@ -54,7 +54,6 @@
     "better-sqlite3": "^11.7.0",
     "bull": "^4.16.3",
     "dotenv": "^16.4.7",
-    "electron-updater": "^6.6.2",
     "express": "^4.18.2",
     "glob": "^11.0.0",
     "openai": "^5.1.1"
@@ -71,7 +70,7 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.stravu.crystal",
+    "appId": "com.crystal-dev.crystal",
     "productName": "Crystal",
     "directories": {
       "output": "dist-electron"
@@ -142,11 +141,6 @@
     },
     "appImage": {
       "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "stravu",
-      "repo": "crystal"
     }
   },
   "packageManager": "pnpm@10.11.1+sha512.e519b9f7639869dc8d5c3c5dfef73b3f091094b0a006d7317353c72b124e80e1afd429732e28705ad6bfa1ee879c1fce46c128ccebd3192101f43dd67c667912"

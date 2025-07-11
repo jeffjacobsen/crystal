@@ -47,7 +47,7 @@ export class ClaudeCodeManager extends EventEmitter {
       
       // Get both global and project-specific system prompts
       const dbSession = this.sessionManager.getDbSession(sessionId);
-      const systemPromptParts: string[] = [];
+      let systemPromptParts: string[] = [];
       
       // Add global system prompt first
       const globalPrompt = this.configManager?.getSystemPromptAppend();

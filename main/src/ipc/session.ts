@@ -92,7 +92,17 @@ export function registerSessionHandlers(ipcMain: IpcMain, services: AppServices)
 
       if (count > 1) {
         console.log('[IPC] Creating multiple sessions...');
-        const jobs = await taskQueue.createMultipleSessions(request.prompt, request.worktreeTemplate || '', count, request.permissionMode, targetProject.id, request.baseBranch, request.autoCommit);
+        const jobs = await taskQueue.createMultipleSessions(
+          request.prompt, 
+          request.worktreeTemplate || '', 
+          count, 
+          request.permissionMode, 
+          targetProject.id, 
+          request.baseBranch, 
+          request.autoCommit, 
+          request.documentIds,
+          request.prpId
+        );
         console.log(`[IPC] Created ${jobs.length} jobs:`, jobs.map(job => job.id));
         return { success: true, data: { jobIds: jobs.map(job => job.id) } };
       } else {
@@ -103,7 +113,9 @@ export function registerSessionHandlers(ipcMain: IpcMain, services: AppServices)
           permissionMode: request.permissionMode,
           projectId: targetProject.id,
           baseBranch: request.baseBranch,
-          autoCommit: request.autoCommit
+          autoCommit: request.autoCommit,
+          documentIds: request.documentIds,
+          prpId: request.prpId
         });
         console.log('[IPC] Created job with ID:', job.id);
         return { success: true, data: { jobId: job.id } };

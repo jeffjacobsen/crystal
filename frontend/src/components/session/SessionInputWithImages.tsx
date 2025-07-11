@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef, memo } from 'react';
 import { Session } from '../../types/session';
 import { ViewMode } from '../../hooks/useSessionView';
-import { X, Image as ImageIcon } from 'lucide-react';
+import { X, Image as ImageIcon, FileText } from 'lucide-react';
 import FilePathAutocomplete from '../FilePathAutocomplete';
+import { DocumentSearchDialog } from '../DocumentSearchDialog';
 
 interface AttachedImage {
   id: string;
@@ -21,8 +22,6 @@ interface SessionInputWithImagesProps {
   handleTerminalCommand: () => void;
   handleSendInput: (attachedImages?: AttachedImage[]) => void;
   handleContinueConversation: (attachedImages?: AttachedImage[]) => void;
-  isStravuConnected: boolean;
-  setShowStravuSearch: (show: boolean) => void;
   ultrathink: boolean;
   setUltrathink: (ultra: boolean) => void;
   handleToggleAutoCommit: () => void;
@@ -37,17 +36,23 @@ export const SessionInputWithImages: React.FC<SessionInputWithImagesProps> = mem
   handleTerminalCommand,
   handleSendInput,
   handleContinueConversation,
-  isStravuConnected,
-  setShowStravuSearch,
   ultrathink,
   setUltrathink,
   handleToggleAutoCommit,
 }) => {
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [showDocumentSearch, setShowDocumentSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generateImageId = () => `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const handleDocumentSelect = useCallback((document: any) => {
+    // Add document content to the input
+    const docReference = `\n\n---\n# Document: ${document.title}\n${document.content}\n---\n`;
+    setInput(input + docReference);
+    setShowDocumentSearch(false);
+  }, [input, setInput]);
 
   const processFile = async (file: File): Promise<AttachedImage | null> => {
     if (!file.type.startsWith('image/')) {
@@ -220,11 +225,13 @@ export const SessionInputWithImages: React.FC<SessionInputWithImagesProps> = mem
             style={{ minHeight: '42px', maxHeight: '200px' }}
           />
           <div className="absolute right-2 top-2 flex gap-1">
-            {isStravuConnected && (
-              <button onClick={() => setShowStravuSearch(true)} className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 focus:outline-none focus:text-blue-600 transition-colors" title="Search Stravu files">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-              </button>
-            )}
+            <button
+              onClick={() => setShowDocumentSearch(true)}
+              className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 focus:outline-none focus:text-blue-600 transition-colors"
+              title="Search documents"
+            >
+              <FileText className="w-5 h-5" />
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 focus:outline-none focus:text-blue-600 transition-colors"
@@ -280,6 +287,16 @@ export const SessionInputWithImages: React.FC<SessionInputWithImagesProps> = mem
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
           This will interrupt the current session if running and restart with conversation history.
         </p>
+      )}
+      
+      {activeSession.projectId && (
+        <DocumentSearchDialog
+          isOpen={showDocumentSearch}
+          onClose={() => setShowDocumentSearch(false)}
+          onDocumentSelect={handleDocumentSelect}
+          projectId={activeSession.projectId}
+          selectionMode="single"
+        />
       )}
     </div>
   );

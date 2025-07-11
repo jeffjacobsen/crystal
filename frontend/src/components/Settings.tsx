@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { NotificationSettings } from './NotificationSettings';
-import { StravuConnection } from './StravuConnection';
 import { useNotifications } from '../hooks/useNotifications';
 import { API } from '../utils/api';
 import type { AppConfig } from '../types/config';
@@ -18,11 +17,17 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
   const [claudeExecutablePath, setClaudeExecutablePath] = useState('');
   const [defaultPermissionMode, setDefaultPermissionMode] = useState<'approve' | 'ignore'>('ignore');
-  const [autoCheckUpdates, setAutoCheckUpdates] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'notifications' | 'stravu'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'notifications'>('general');
   const { settings, updateSettings } = useNotifications();
+  const [claudeTestResult, setClaudeTestResult] = useState<{
+    available: boolean;
+    version?: string;
+    path?: string;
+    error?: string;
+  } | null>(null);
+  const [isTestingClaude, setIsTestingClaude] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,9 +46,32 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
       setGlobalSystemPrompt(data.systemPromptAppend || '');
       setClaudeExecutablePath(data.claudeExecutablePath || '');
       setDefaultPermissionMode(data.defaultPermissionMode || 'ignore');
-      setAutoCheckUpdates(data.autoCheckUpdates !== false); // Default to true
     } catch (err) {
       setError('Failed to load configuration');
+    }
+  };
+
+  const testClaude = async (customPath?: string) => {
+    setIsTestingClaude(true);
+    setClaudeTestResult(null);
+    
+    try {
+      const response = await API.config.testClaude(customPath);
+      if (response.success && response.data) {
+        setClaudeTestResult(response.data);
+      } else {
+        setClaudeTestResult({
+          available: false,
+          error: response.error || 'Failed to test Claude'
+        });
+      }
+    } catch (err) {
+      setClaudeTestResult({
+        available: false,
+        error: err instanceof Error ? err.message : 'Failed to test Claude'
+      });
+    } finally {
+      setIsTestingClaude(false);
     }
   };
 
@@ -59,7 +87,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
         systemPromptAppend: globalSystemPrompt, 
         claudeExecutablePath,
         defaultPermissionMode,
-        autoCheckUpdates
       });
 
       if (!response.success) {
@@ -117,16 +144,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
             }`}
           >
             Notifications
-          </button>
-          <button
-            onClick={() => setActiveTab('stravu')}
-            className={`px-4 py-2 text-sm font-medium ${
-              activeTab === 'stravu'
-                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
-            }`}
-          >
-            Stravu Integration
           </button>
         </div>
 
@@ -282,51 +299,49 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
               >
                 Browse
               </button>
+              <button
+                type="button"
+                onClick={() => testClaude(claudeExecutablePath)}
+                disabled={isTestingClaude}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {isTestingClaude ? 'Testing...' : 'Test'}
+              </button>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Full path to the claude executable. Leave empty to use the claude command from PATH. This is useful if Claude is installed in a non-standard location.
             </p>
+            {claudeTestResult && (
+              <div className={`mt-2 p-3 rounded-md text-sm ${
+                claudeTestResult.available 
+                  ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800' 
+                  : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
+              }`}>
+                {claudeTestResult.available ? (
+                  <div className="text-green-800 dark:text-green-200">
+                    <div className="font-medium mb-1">✓ Claude Code is available</div>
+                    {claudeTestResult.version && (
+                      <div className="text-xs">Version: {claudeTestResult.version}</div>
+                    )}
+                    {claudeTestResult.path && (
+                      <div className="text-xs">Path: {claudeTestResult.path}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-red-800 dark:text-red-200">
+                    <div className="font-medium mb-1">✗ Claude Code not found</div>
+                    {claudeTestResult.error && (
+                      <div className="text-xs">{claudeTestResult.error}</div>
+                    )}
+                    <div className="text-xs mt-1">
+                      Please ensure Claude Code is installed and accessible from the command line.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={autoCheckUpdates}
-                    onChange={(e) => setAutoCheckUpdates(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Check for updates automatically</span>
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Automatically check for new Crystal releases on GitHub every 24 hours. You'll be notified when updates are available.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const response = await API.checkForUpdates();
-                    if (response.success && response.data) {
-                      if (response.data.hasUpdate) {
-                        // Update will be shown via the version update event
-                      } else {
-                        alert('You are running the latest version of Crystal!');
-                      }
-                    }
-                  } catch (error) {
-                    console.error('Failed to check for updates:', error);
-                    alert('Failed to check for updates. Please try again later.');
-                  }
-                }}
-                className="ml-4 px-3 py-1 text-sm font-medium text-blue-600 dark:text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 focus:outline-none"
-              >
-                Check Now
-              </button>
-            </div>
-          </div>
 
 
           {error && (
@@ -340,40 +355,6 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
             settings={settings}
             onUpdateSettings={updateSettings}
           />
-        )}
-        
-        {activeTab === 'stravu' && (
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <img 
-                src="./stravu-logo.png" 
-                alt="Stravu Logo" 
-                className="w-16 h-16 object-contain flex-shrink-0"
-              />
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Stravu - The way AI-first teams collaborate
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Connect Crystal to your Stravu workspace to seamlessly integrate your team's knowledge and documentation into your AI-powered development workflow.
-                </p>
-                <a 
-                  href="https://stravu.com/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium inline-flex items-center gap-1"
-                >
-                  Learn more about Stravu
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-            <div className="border-t border-gray-700 pt-6">
-              <StravuConnection />
-            </div>
-          </div>
         )}
         </div>
 

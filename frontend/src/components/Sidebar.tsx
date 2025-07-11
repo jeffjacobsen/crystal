@@ -87,6 +87,16 @@ export function Sidebar({ viewMode, onViewModeChange, onHelpClick, onAboutClick,
         <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex">
             <button
+              onClick={() => onViewModeChange('prompts')}
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
+                viewMode === 'prompts'
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              PRPs
+            </button>
+            <button
               onClick={() => onViewModeChange('sessions')}
               className={`flex-1 px-4 py-3 text-sm font-medium ${
                 viewMode === 'sessions'
@@ -95,16 +105,6 @@ export function Sidebar({ viewMode, onViewModeChange, onHelpClick, onAboutClick,
               }`}
             >
               Sessions
-            </button>
-            <button
-              onClick={() => onViewModeChange('prompts')}
-              className={`flex-1 px-4 py-3 text-sm font-medium ${
-                viewMode === 'prompts'
-                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border-b-2 border-blue-500'
-                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              Prompts
             </button>
           </div>
         </div>

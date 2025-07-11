@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { API } from '../utils/api';
 import type { CreateSessionRequest } from '../types/session';
 import { useErrorStore } from '../stores/errorStore';
-import { Shield, ShieldOff, Sparkles, GitBranch } from 'lucide-react';
+import { Shield, ShieldOff, Sparkles, GitBranch, FileText, FileCheck, X } from 'lucide-react';
 import FilePathAutocomplete from './FilePathAutocomplete';
+import { DocumentSearchDialog } from './DocumentSearchDialog';
+import { PRPSearchDialog } from './PRPSearchDialog';
 
 interface CreateSessionDialogProps {
   isOpen: boolean;
@@ -25,8 +27,11 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
   const [hasApiKey, setHasApiKey] = useState(false);
   const [branches, setBranches] = useState<Array<{ name: string; isCurrent: boolean; hasWorktree: boolean }>>([]);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
-  const [ultrathink, setUltrathink] = useState(false);
   const [autoCommit, setAutoCommit] = useState(true); // Default to true
+  const [showDocumentSearch, setShowDocumentSearch] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<Array<{id: number; title: string}>>([]);
+  const [showPRPSearch, setShowPRPSearch] = useState(false);
+  const [selectedPRP, setSelectedPRP] = useState<{id: number; title: string} | null>(null);
   const { showError } = useErrorStore();
   
   useEffect(() => {
@@ -64,9 +69,70 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
         }).finally(() => {
           setIsLoadingBranches(false);
         });
+
       }
     }
   }, [isOpen, projectId]);
+  
+  // Pre-fill prompt when PRP is selected
+  useEffect(() => {
+    if (selectedPRP) {
+      // Get default prompt template from config, with fallback
+      const getDefaultPRPPrompt = async () => {
+        try {
+          const response = await API.config.get();
+          if (response.success && response.data?.defaultPRPPromptTemplate) {
+            return response.data.defaultPRPPromptTemplate;
+          }
+        } catch (error) {
+          console.warn('Failed to get config for PRP prompt template:', error);
+        }
+        
+        // Fallback default template
+        return `## Execution Process
+
+1. **Load PRP**
+   - Read the PRP
+   - Understand all context and requirements
+   - Follow all instructions in the PRP and extend the research if needed
+   - Ensure you have all needed context to implement the PRP fully
+   - Do more web searches and codebase exploration as needed
+
+2. **THINK**
+   - Think hard before you execute the plan. Create a comprehensive plan addressing all requirements.
+   - Break down complex tasks into smaller, manageable steps using your todos tools.
+   - Use the TodoWrite tool to create and track your implementation plan.
+   - Identify implementation patterns from existing code to follow.
+
+3. **Execute the plan**
+   - Execute the PRP
+   - Implement all the code
+
+4. **Validate**
+   - Run each validation command
+   - Fix any failures
+   - Re-run until all pass
+
+5. **Complete**
+   - Ensure all checklist items done
+   - Run final validation suite
+   - Report completion status
+   - Read the PRP again to ensure you have implemented everything
+
+6. **Reference the PRP**
+   - You can always reference the PRP again if needed
+
+Note: If validation fails, use error patterns in PRP to fix and retry.`;
+      };
+      
+      getDefaultPRPPrompt().then(promptTemplate => {
+        setFormData(prev => ({
+          ...prev,
+          prompt: promptTemplate
+        }));
+      });
+    }
+  }, [selectedPRP]);
   
   if (!isOpen) return null;
   
@@ -105,15 +171,6 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if session name is required
-    if (!hasApiKey && !formData.worktreeTemplate) {
-      showError({
-        title: 'Session Name Required',
-        error: 'Please provide a session name or add an Anthropic API key in Settings to enable auto-naming.'
-      });
-      return;
-    }
-    
     // Validate worktree name
     const validationError = validateWorktreeName(formData.worktreeTemplate || '');
     if (validationError) {
@@ -127,14 +184,15 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
     setIsSubmitting(true);
     
     try {
-      // Append ultrathink to prompt if checkbox is checked
-      const finalPrompt = ultrathink ? formData.prompt + '\nultrathink' : formData.prompt;
+      const finalPrompt = formData.prompt;
       
       const response = await API.sessions.create({
         ...formData,
         prompt: finalPrompt,
         projectId,
-        autoCommit
+        autoCommit,
+        documentIds: selectedDocuments.map(doc => doc.id),
+        prpId: selectedPRP?.id
       });
       
       if (!response.success) {
@@ -155,8 +213,9 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
         : 'ignore';
       setFormData({ prompt: '', worktreeTemplate: '', count: 1, permissionMode: defaultPermissionMode as 'ignore' | 'approve' });
       setWorktreeError(null);
-      setUltrathink(false);
       setAutoCommit(true); // Reset to default
+      setSelectedDocuments([]);
+      setSelectedPRP(null);
     } catch (error: any) {
       console.error('Error creating session:', error);
       showError({
@@ -194,6 +253,41 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <form id="create-session-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* PRP Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Use PRP
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPRPSearch(true)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+                >
+                  <FileText className="w-4 h-4" />
+                  {selectedPRP ? selectedPRP.title : 'Select PRP'}
+                </button>
+                
+                {selectedPRP && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPRP(null);
+                      // Clear the auto-filled prompt
+                      setFormData({ ...formData, prompt: '' });
+                    }}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                PRPs provide structured requirements and validation gates for Claude
+              </p>
+            </div>
+            
           <div>
             <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Prompt
@@ -207,111 +301,108 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
               isTextarea={true}
               rows={4}
             />
-            <div className="mt-2 space-y-3">
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={ultrathink}
-                    onChange={(e) => setUltrathink(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Enable ultrathink mode
-                  </span>
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">
-                  Triggers Claude Code to use its maximum thinking token limit. Slower but better for difficult tasks.
-                </p>
-              </div>
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={autoCommit}
-                    onChange={(e) => setAutoCommit(e.target.checked)}
-                    className="h-4 w-4 text-green-600 rounded border-gray-300 dark:border-gray-600 focus:ring-green-500"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Enable auto-commit
-                  </span>
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">
-                  Automatically commit changes after each prompt. Can be toggled later during the session.
-                </p>
-              </div>
+            <div className="mt-2">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={autoCommit}
+                  onChange={(e) => setAutoCommit(e.target.checked)}
+                  className="h-4 w-4 text-green-600 rounded border-gray-300 dark:border-gray-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Enable auto-commit
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">
+                Automatically commit changes after each prompt. Can be toggled later during the session.
+              </p>
             </div>
           </div>
           
-          <div>
-            <label htmlFor="worktreeTemplate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Session Name {hasApiKey ? '(Optional)' : '(Required)'}
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="worktreeTemplate"
-                type="text"
-                value={formData.worktreeTemplate}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setFormData({ ...formData, worktreeTemplate: value });
-                  // Real-time validation
-                  const error = validateWorktreeName(value);
-                  setWorktreeError(error);
-                }}
-                className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 ${
-                  worktreeError 
-                    ? 'border-red-400 focus:ring-red-500' 
-                    : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
-                }`}
-                placeholder={hasApiKey ? "Leave empty for AI-generated name" : "Enter a name for your session"}
-                disabled={isGeneratingName}
-              />
-              {hasApiKey && formData.prompt.trim() && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setIsGeneratingName(true);
-                    try {
-                      const response = await API.sessions.generateName(formData.prompt);
-                      if (response.success && response.data) {
-                        setFormData({ ...formData, worktreeTemplate: response.data });
-                        setWorktreeError(null);
-                      } else {
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <label htmlFor="worktreeTemplate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Session Name (Optional)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="worktreeTemplate"
+                  type="text"
+                  value={formData.worktreeTemplate}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, worktreeTemplate: value });
+                    // Real-time validation
+                    const error = validateWorktreeName(value);
+                    setWorktreeError(error);
+                  }}
+                  className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 ${
+                    worktreeError 
+                      ? 'border-red-400 focus:ring-red-500' 
+                      : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
+                  }`}
+                  placeholder="Leave empty for AI-generated name"
+                  disabled={isGeneratingName}
+                />
+                {hasApiKey && formData.prompt.trim() && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsGeneratingName(true);
+                      try {
+                        const response = await API.sessions.generateName(formData.prompt);
+                        if (response.success && response.data) {
+                          setFormData({ ...formData, worktreeTemplate: response.data });
+                          setWorktreeError(null);
+                        } else {
+                          showError({
+                            title: 'Failed to Generate Name',
+                            error: response.error || 'Could not generate session name'
+                          });
+                        }
+                      } catch (error) {
                         showError({
                           title: 'Failed to Generate Name',
-                          error: response.error || 'Could not generate session name'
+                          error: 'An error occurred while generating the name'
                         });
+                      } finally {
+                        setIsGeneratingName(false);
                       }
-                    } catch (error) {
-                      showError({
-                        title: 'Failed to Generate Name',
-                        error: 'An error occurred while generating the name'
-                      });
-                    } finally {
-                      setIsGeneratingName(false);
-                    }
-                  }}
-                  className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-gray-300 dark:border-gray-600"
-                  disabled={isGeneratingName || !formData.prompt.trim()}
-                  title="Generate name from prompt"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {isGeneratingName ? 'Generating...' : 'Generate'}
-                </button>
+                    }}
+                    className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-gray-300 dark:border-gray-600"
+                    disabled={isGeneratingName || !formData.prompt.trim()}
+                    title="Generate name from prompt"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {isGeneratingName ? 'Generating...' : 'Generate'}
+                  </button>
+                )}
+              </div>
+              {worktreeError && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">{worktreeError}</p>
               )}
-            </div>
-            {worktreeError && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{worktreeError}</p>
-            )}
-            {!hasApiKey && !formData.worktreeTemplate && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                Session name is required. Add an Anthropic API key in Settings to enable AI-powered auto-naming.
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {!worktreeError && 'The name that will be used to label your session and create your worktree folder.'}
               </p>
-            )}
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {!worktreeError && !(!hasApiKey && !formData.worktreeTemplate) && 'The name that will be used to label your session and create your worktree folder.'}
-            </p>
+            </div>
+            
+            <div>
+              <label htmlFor="count" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Number of Sessions
+              </label>
+              <input
+                id="count"
+                type="number"
+                min="1"
+                max="10"
+                value={formData.count}
+                onChange={(e) => setFormData({ ...formData, count: parseInt(e.target.value) || 1 })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Creates multiple sessions with numbered suffixes
+              </p>
+            </div>
           </div>
           
           {branches.length > 0 && (
@@ -355,23 +446,49 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
             </div>
           )}
           
+          
+          {/* Document Selection */}
           <div>
-            <label htmlFor="count" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Number of Sessions
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Include Documents
             </label>
-            <input
-              id="count"
-              type="number"
-              min="1"
-              max="10"
-              value={formData.count}
-              onChange={(e) => setFormData({ ...formData, count: parseInt(e.target.value) || 1 })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Creates multiple sessions with numbered suffixes
-            </p>
+            <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDocumentSearch(true)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+                >
+                  <FileText className="w-4 h-4" />
+                  Select Documents
+                  {selectedDocuments.length > 0 && (
+                    <span className="ml-1 bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs">
+                      {selectedDocuments.length}
+                    </span>
+                  )}
+                </button>
+                
+                {selectedDocuments.length > 0 && (
+                  <div className="flex-1 flex flex-wrap gap-1">
+                    {selectedDocuments.slice(0, 3).map(doc => (
+                      <span key={doc.id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md text-xs">
+                        <FileCheck className="w-3 h-3" />
+                        {doc.title}
+                      </span>
+                    ))}
+                    {selectedDocuments.length > 3 && (
+                      <span className="inline-flex items-center px-2 py-1 text-gray-500 dark:text-gray-400 text-xs">
+                        +{selectedDocuments.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Selected documents provide Claude with project context and requirements
+              </p>
           </div>
+          
           
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -419,11 +536,6 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
                 </div>
               </label>
             </div>
-            <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                <strong>Note:</strong> This setting only affects new sessions. You can change the default in Settings.
-              </p>
-            </div>
           </div>
           </form>
         </div>
@@ -444,15 +556,8 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
           <button
             type="submit"
             form="create-session-form"
-            disabled={isSubmitting || !formData.prompt || !!worktreeError || (!hasApiKey && !formData.worktreeTemplate)}
+            disabled={isSubmitting || !formData.prompt || !!worktreeError}
             className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed font-medium transition-colors shadow-sm hover:shadow"
-            title={
-              isSubmitting ? 'Creating session...' :
-              !formData.prompt ? 'Please enter a prompt' :
-              worktreeError ? 'Please fix the session name error' :
-              (!hasApiKey && !formData.worktreeTemplate) ? 'Please enter a session name (required without API key)' :
-              undefined
-            }
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
@@ -465,6 +570,33 @@ export function CreateSessionDialog({ isOpen, onClose, projectName, projectId }:
           </button>
         </div>
       </div>
+      
+      {/* Document Search Dialog */}
+      {showDocumentSearch && projectId && (
+        <DocumentSearchDialog
+          isOpen={showDocumentSearch}
+          onClose={() => setShowDocumentSearch(false)}
+          projectId={projectId}
+          selectionMode="multiple"
+          onDocumentSelect={() => {}} // Not used in multiple mode
+          onMultipleSelect={(docs) => {
+            setSelectedDocuments(docs.map(d => ({ id: d.id, title: d.title })));
+            setShowDocumentSearch(false);
+          }}
+        />
+      )}
+      
+      {/* PRP Search Dialog */}
+      {showPRPSearch && (
+        <PRPSearchDialog
+          isOpen={showPRPSearch}
+          onClose={() => setShowPRPSearch(false)}
+          onPRPSelect={(prp) => {
+            setSelectedPRP({ id: prp.id, title: prp.title });
+            setShowPRPSearch(false);
+          }}
+        />
+      )}
     </div>
   );
 }

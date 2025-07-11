@@ -1142,18 +1142,11 @@ export class SessionManager extends EventEmitter {
 
   async sendTerminalInput(sessionId: string, data: string): Promise<void> {
     const session = this.activeSessions.get(sessionId);
-    let worktreePath: string;
-    
     if (!session) {
-      // Try to get session from database for terminal-only sessions
-      const dbSession = this.db.getSession(sessionId);
-      if (!dbSession || !dbSession.worktree_path) {
-        throw new Error('Session not found');
-      }
-      worktreePath = dbSession.worktree_path;
-    } else {
-      worktreePath = session.worktreePath;
+      throw new Error('Session not found');
     }
+
+    const worktreePath = session.worktreePath;
 
     try {
       // Create terminal session if it doesn't exist
@@ -1185,18 +1178,11 @@ export class SessionManager extends EventEmitter {
 
   async preCreateTerminalSession(sessionId: string): Promise<void> {
     const session = this.activeSessions.get(sessionId);
-    let worktreePath: string;
-    
     if (!session) {
-      // Try to get session from database for terminal-only sessions
-      const dbSession = this.db.getSession(sessionId);
-      if (!dbSession || !dbSession.worktree_path) {
-        throw new Error('Session not found');
-      }
-      worktreePath = dbSession.worktree_path;
-    } else {
-      worktreePath = session.worktreePath;
+      throw new Error('Session not found');
     }
+
+    const worktreePath = session.worktreePath;
 
     try {
       // Create terminal session if it doesn't exist

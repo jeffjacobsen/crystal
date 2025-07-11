@@ -37,9 +37,9 @@ export function registerAppHandlers(ipcMain: IpcMain, services: AppServices): vo
   });
 
   // App opens tracking
-  ipcMain.handle('app:record-open', (_event, welcomeHidden: boolean, discordShown: boolean = false) => {
+  ipcMain.handle('app:record-open', (_event, welcomeHidden: boolean) => {
     try {
-      services.databaseService.recordAppOpen(welcomeHidden, discordShown);
+      services.databaseService.recordAppOpen(welcomeHidden);
       return { success: true };
     } catch (error) {
       console.error('Failed to record app open:', error);
@@ -57,15 +57,6 @@ export function registerAppHandlers(ipcMain: IpcMain, services: AppServices): vo
     }
   });
 
-  ipcMain.handle('app:update-discord-shown', () => {
-    try {
-      services.databaseService.updateLastAppOpenDiscordShown();
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to update discord shown:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update discord shown' };
-    }
-  });
 
   // User preferences handlers
   ipcMain.handle('preferences:get', (_event, key: string) => {

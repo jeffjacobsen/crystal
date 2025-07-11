@@ -6,6 +6,7 @@ import { WorktreeNameGenerator } from './worktreeNameGenerator';
 import type { ClaudeCodeManager } from './claudeCodeManager';
 import type { GitDiffManager } from './gitDiffManager';
 import type { ExecutionTracker } from './executionTracker';
+import type { LocalDocumentService } from './localDocumentService';
 import { formatForDisplay } from '../utils/timestampUtils';
 import * as os from 'os';
 
@@ -16,6 +17,8 @@ interface TaskQueueOptions {
   gitDiffManager: GitDiffManager;
   executionTracker: ExecutionTracker;
   worktreeNameGenerator: WorktreeNameGenerator;
+  localDocumentService?: LocalDocumentService;
+  prpService?: any; // Using any to avoid circular dependency issues
   getMainWindow: () => Electron.BrowserWindow | null;
 }
 
@@ -28,6 +31,8 @@ interface CreateSessionJob {
   folderId?: string;
   baseBranch?: string;
   autoCommit?: boolean;
+  documentIds?: number[];
+  prpId?: number;
 }
 
 interface ContinueSessionJob {
@@ -123,7 +128,7 @@ export class TaskQueue {
     const sessionConcurrency = isLinux ? 1 : 5;
     
     this.sessionQueue.process(sessionConcurrency, async (job) => {
-      const { prompt, worktreeTemplate, index, permissionMode, projectId, baseBranch, autoCommit } = job.data;
+      const { prompt, worktreeTemplate, index, permissionMode, projectId, baseBranch, autoCommit, documentIds, prpId } = job.data;
       const { sessionManager, worktreeManager, claudeCodeManager } = this.options;
 
       console.log(`[TaskQueue] Processing session creation job ${job.id}`, { prompt, worktreeTemplate, index, permissionMode, projectId, baseBranch });
@@ -231,9 +236,88 @@ export class TaskQueue {
           console.log(`[TaskQueue] Build script completed. Success: ${buildResult.success}`);
         }
 
+        // Prepare prompt with documents if available
+        let finalPrompt = prompt;
+        
+        // Add documents to the prompt if they exist
+        if (documentIds && documentIds.length > 0) {
+          const documentContext: string[] = [];
+          
+          // Add regular documents
+          if (documentIds && documentIds.length > 0 && this.options.localDocumentService) {
+            try {
+              const documents = await Promise.all(
+                documentIds.map(id => this.options.localDocumentService!.getDocument(id))
+              );
+              
+              const validDocs = documents.filter(doc => doc !== null);
+              if (validDocs.length > 0) {
+                documentContext.push('## Reference Documents\n');
+                for (const doc of validDocs) {
+                  if (doc) {
+                    const formattedDoc = this.options.localDocumentService.formatDocumentForClaude(doc);
+                    documentContext.push(formattedDoc);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('[TaskQueue] Failed to fetch documents for context:', error);
+            }
+          }
+          
+          // Append document context to the prompt
+          if (documentContext.length > 0) {
+            finalPrompt = prompt + '\n\n' + documentContext.join('\n\n');
+          }
+        }
+        
+        // Add PRP to the prompt if available
+        if (prpId && this.options.prpService) {
+          try {
+            console.log(`[TaskQueue] Fetching PRP ${prpId} for session ${session.id}`);
+            const prp = await this.options.prpService.getPRP(prpId);
+            
+            if (prp) {
+              // Format PRP for Claude
+              const prpContext = this.options.prpService.formatPRPForClaude(prp);
+              
+              // Append PRP to the prompt
+              finalPrompt = finalPrompt + '\n\n' + prpContext;
+              console.log(`[TaskQueue] Added PRP "${prp.title}" to prompt for session ${session.id}`);
+            }
+          } catch (error) {
+            console.error('[TaskQueue] Failed to fetch PRP for context:', error);
+            // Continue even if PRP fetch fails
+          }
+        }
+        
         console.log(`[TaskQueue] Starting Claude Code for session ${session.id} with permission mode: ${permissionMode}`);
-        await claudeCodeManager.startSession(session.id, session.worktreePath, prompt, permissionMode);
+        await claudeCodeManager.startSession(session.id, session.worktreePath, finalPrompt, permissionMode);
         console.log(`[TaskQueue] Claude Code started successfully for session ${session.id}`);
+
+        // Handle document associations
+        if (documentIds && documentIds.length > 0 && this.options.localDocumentService) {
+          console.log(`[TaskQueue] Adding ${documentIds.length} documents to session ${session.id}`);
+          try {
+            await this.options.localDocumentService.addDocumentsToSession(session.id, documentIds);
+            console.log(`[TaskQueue] Successfully added documents to session ${session.id}`);
+          } catch (error) {
+            console.error(`[TaskQueue] Failed to add documents to session:`, error);
+            // Continue even if document association fails
+          }
+        }
+
+        // Handle PRP association
+        if (prpId && this.options.prpService) {
+          console.log(`[TaskQueue] Adding PRP ${prpId} to session ${session.id}`);
+          try {
+            await this.options.prpService.addPRPToSession(session.id, prpId);
+            console.log(`[TaskQueue] Successfully added PRP to session ${session.id}`);
+          } catch (error) {
+            console.error(`[TaskQueue] Failed to add PRP to session:`, error);
+            // Continue even if PRP association fails
+          }
+        }
 
         return { sessionId: session.id };
       } catch (error) {
@@ -270,7 +354,7 @@ export class TaskQueue {
     return job;
   }
 
-  async createMultipleSessions(prompt: string, worktreeTemplate: string, count: number, permissionMode?: 'approve' | 'ignore', projectId?: number, baseBranch?: string, autoCommit?: boolean): Promise<(Bull.Job<CreateSessionJob> | any)[]> {
+  async createMultipleSessions(prompt: string, worktreeTemplate: string, count: number, permissionMode?: 'approve' | 'ignore', projectId?: number, baseBranch?: string, autoCommit?: boolean, documentIds?: number[], prpId?: number): Promise<(Bull.Job<CreateSessionJob> | any)[]> {
     let folderId: string | undefined;
     let generatedBaseName: string | undefined;
     
@@ -327,7 +411,18 @@ export class TaskQueue {
     for (let i = 0; i < count; i++) {
       // Use the generated base name if no template was provided
       const templateToUse = worktreeTemplate || generatedBaseName || '';
-      jobs.push(this.sessionQueue.add({ prompt, worktreeTemplate: templateToUse, index: i, permissionMode, projectId, folderId, baseBranch, autoCommit }));
+      jobs.push(this.sessionQueue.add({ 
+        prompt, 
+        worktreeTemplate: templateToUse, 
+        index: i, 
+        permissionMode, 
+        projectId, 
+        folderId, 
+        baseBranch, 
+        autoCommit,
+        documentIds,
+        prpId
+      }));
     }
     return Promise.all(jobs);
   }

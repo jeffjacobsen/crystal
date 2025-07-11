@@ -10,11 +10,13 @@ const execAsync = promisify(exec);
 async function execWithShellPath(command: string, options?: { cwd?: string }): Promise<{ stdout: string; stderr: string }> {
   const shellPath = getShellPath();
   return execAsync(command, {
-    ...options,
+    ...options
+    /*
     env: {
       ...process.env,
       PATH: shellPath
     }
+    */
   });
 }
 
@@ -245,6 +247,7 @@ export class WorktreeManager {
       return branches;
     } catch (error) {
       console.error(`[WorktreeManager] Error listing branches:`, error);
+      console.error(`[WorktreeManager] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
       return [];
     }
   }
@@ -313,32 +316,22 @@ export class WorktreeManager {
 
   async getProjectMainBranch(projectPath: string): Promise<string> {
     try {
-      // First, check if user has overridden the main branch (future feature)
-      // TODO: Implement user override check here when the feature is added
-      // const userOverride = await this.getUserMainBranchOverride(projectPath);
-      // if (userOverride) {
-      //   console.log(`[WorktreeManager] Using user-configured main branch: ${userOverride}`);
-      //   return userOverride;
-      // }
-
-      // Always use detectMainBranch to find the actual main branch
-      // This ensures we get the repository's main branch (main/master/etc)
-      // rather than whatever branch the project directory happens to be on
-      console.log(`[WorktreeManager] Detecting main branch for project: ${projectPath}`);
-      const mainBranch = await this.detectMainBranch(projectPath);
-      console.log(`[WorktreeManager] Detected main branch: ${mainBranch}`);
-      return mainBranch;
+      // Get the current branch of the main project directory (not a worktree)
+      const result = await execWithShellPath(`git branch --show-current`, { cwd: projectPath });
+      const currentBranch = result.stdout.trim();
+      
+      if (currentBranch) {
+        console.log(`[WorktreeManager] Main project directory is on branch: ${currentBranch}`);
+        return currentBranch;
+      }
+      
+      // If we can't get the current branch, fall back to detectMainBranch
+      return await this.detectMainBranch(projectPath);
     } catch (error) {
       console.error(`[WorktreeManager] Error getting project main branch:`, error);
-      // Fall back to 'main' as default
-      return 'main';
+      // Fall back to detectMainBranch method
+      return await this.detectMainBranch(projectPath);
     }
-  }
-
-  // Deprecated: Use getProjectMainBranch directly
-  async getEffectiveMainBranch(project: { path: string }): Promise<string> {
-    // This method is kept for backward compatibility but just calls getProjectMainBranch
-    return await this.getProjectMainBranch(project.path);
   }
 
   async hasChangesToRebase(worktreePath: string, mainBranch: string): Promise<boolean> {
@@ -604,16 +597,13 @@ export class WorktreeManager {
   async getLastCommits(worktreePath: string, count: number = 20): Promise<any[]> {
     const currentDir = process.cwd();
     
-    console.log(`[WorktreeManager] Getting last ${count} commits for worktree: ${worktreePath}`);
-    
     try {
       process.chdir(worktreePath);
       
       // Get the last N commits with stats
-      const gitCommand = `git log -${count} --pretty=format:'%H|%s|%ai' --shortstat`;
-      console.log(`[WorktreeManager] Git command: ${gitCommand}`);
-      
-      const { stdout } = await execWithShellPath(gitCommand);
+      const { stdout } = await execWithShellPath(
+        `git log -${count} --pretty=format:'%H|%s|%ai' --shortstat`
+      );
       
       // Parse the output
       const commits: any[] = [];
@@ -650,9 +640,6 @@ export class WorktreeManager {
         commits.push(commit);
         i++;
       }
-      
-      console.log(`[WorktreeManager] Found ${commits.length} commits in the main repository`);
-      console.log(`[WorktreeManager] Note: This shows ALL commits, not filtered by branch`);
       
       return commits;
     } catch (error: any) {

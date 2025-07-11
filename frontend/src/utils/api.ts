@@ -322,6 +322,11 @@ export class API {
       if (!isElectron()) throw new Error('Electron API not available');
       return window.electronAPI.config.update(updates);
     },
+
+    async testClaude(customPath?: string) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.config.testClaude(customPath);
+    },
   };
 
   // Prompts
@@ -363,54 +368,141 @@ export class API {
     },
   };
 
-  // Version and updates
-  static async checkForUpdates() {
-    if (!isElectron()) throw new Error('Electron API not available');
-    return window.electronAPI.checkForUpdates();
-  }
 
-  static async getVersionInfo() {
-    if (!isElectron()) throw new Error('Electron API not available');
-    return window.electronAPI.getVersionInfo();
-  }
-
-  // Stravu MCP integration with OAuth
-  static stravu = {
-    async getConnectionStatus() {
+  // Document management
+  static documents = {
+    async getAll(projectId: number) {
       if (!isElectron()) throw new Error('Electron API not available');
-      return window.electronAPI.stravu.getConnectionStatus();
+      return window.electronAPI.documents.getAll(projectId);
     },
 
-    async initiateAuth() {
+    async get(documentId: number) {
       if (!isElectron()) throw new Error('Electron API not available');
-      return window.electronAPI.stravu.initiateAuth();
+      return window.electronAPI.documents.get(documentId);
     },
 
-    async checkAuthStatus(sessionId: string) {
+    async create(projectId: number, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) {
       if (!isElectron()) throw new Error('Electron API not available');
-      return window.electronAPI.stravu.checkAuthStatus(sessionId);
+      return window.electronAPI.documents.create(projectId, title, content, category, tags, filePath, url);
     },
 
-    async disconnect() {
+    async update(documentId: number, updates: any) {
       if (!isElectron()) throw new Error('Electron API not available');
-      return window.electronAPI.stravu.disconnect();
+      return window.electronAPI.documents.update(documentId, updates);
     },
 
-    async getNotebooks() {
+    async delete(documentId: number) {
       if (!isElectron()) throw new Error('Electron API not available');
-      return window.electronAPI.stravu.getNotebooks();
+      return window.electronAPI.documents.delete(documentId);
     },
 
-    async getNotebook(notebookId: string) {
+    async search(projectId: number, query: string, limit?: number) {
       if (!isElectron()) throw new Error('Electron API not available');
-      return window.electronAPI.stravu.getNotebook(notebookId);
-    },
-
-    async searchNotebooks(query: string, limit?: number) {
-      if (!isElectron()) throw new Error('Electron API not available');
-      return window.electronAPI.stravu.searchNotebooks(query, limit);
+      return window.electronAPI.documents.search(projectId, query, limit);
     },
   };
+
+  // PRP (Product Requirement Prompt) management
+  static prp = {
+    async get(prpId: number) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.get(prpId);
+    },
+
+    async getAll(projectId?: number) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.getAll(projectId);
+    },
+
+    async create(projectId: number, title: string, content: string) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.create(projectId, title, content);
+    },
+
+    async update(prpId: number, content: string, createNewVersion?: boolean) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.update(prpId, content, createNewVersion);
+    },
+
+    async delete(prpId: number) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.delete(prpId);
+    },
+
+    async generateFromTemplate(request: {
+      templateId: string;
+      featureRequest: string;
+      additionalContext?: string;
+      codebasePath?: string;
+      variables?: Record<string, any>;
+      streamProgress?: boolean;
+    }) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.generateFromTemplate(request);
+    },
+
+    async getTemplates() {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.getTemplates();
+    },
+
+    async validateTemplate(templatePath: string) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.validateTemplate(templatePath);
+    },
+
+    async reloadTemplates(customPaths?: string[]) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.reloadTemplates(customPaths);
+    },
+  };
+
+  // PRD management (legacy for backward compatibility)
+  static prd = {
+    async getActive(projectId: number) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prd.getActive(projectId);
+    },
+
+    async get(prdId: number) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prd.get(prdId);
+    },
+
+    async create(projectId: number, title: string, content: string) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prd.create(projectId, title, content);
+    },
+
+    async update(prdId: number, content: string, createNewVersion?: boolean) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prd.update(prdId, content, createNewVersion);
+    },
+  };
+
+  // Session document associations
+  static sessionDocuments = {
+    async add(sessionId: string, documentIds: number[]) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.sessionDocuments.add(sessionId, documentIds);
+    },
+
+    async addPRP(sessionId: string, prpId: number, prpVersion: number) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.sessionDocuments.addPRP(sessionId, prpId, prpVersion);
+    },
+
+    async addPRD(sessionId: string, prdId: number, prdVersion: number) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.sessionDocuments.addPRD(sessionId, prdId, prdVersion);
+    },
+
+    async get(sessionId: string) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.sessionDocuments.get(sessionId);
+    },
+  };
+
 }
 
 // Legacy support - removed as migration is complete

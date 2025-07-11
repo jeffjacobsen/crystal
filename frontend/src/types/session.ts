@@ -31,6 +31,7 @@ export interface CreateSessionRequest {
   isMainRepo?: boolean;
   baseBranch?: string;
   autoCommit?: boolean;
+  documentIds?: number[];
 }
 
 export interface SessionOutput {

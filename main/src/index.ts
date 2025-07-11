@@ -10,13 +10,9 @@ import { ExecutionTracker } from './services/executionTracker';
 import { DatabaseService } from './database/database';
 import { RunCommandManager } from './services/runCommandManager';
 import { PermissionIpcServer } from './services/permissionIpcServer';
-import { VersionChecker } from './services/versionChecker';
-import { StravuAuthManager } from './services/stravuAuthManager';
-import { StravuNotebookService } from './services/stravuNotebookService';
 import { Logger } from './utils/logger';
 import { setCrystalDirectory } from './utils/crystalDirectory';
 import { registerIpcHandlers } from './ipc';
-import { setupAutoUpdater } from './autoUpdater';
 import { setupEventListeners } from './events';
 import { AppServices } from './ipc/types';
 import { ClaudeCodeManager } from './services/claudeCodeManager';
@@ -36,9 +32,6 @@ let worktreeNameGenerator: WorktreeNameGenerator;
 let databaseService: DatabaseService;
 let runCommandManager: RunCommandManager;
 let permissionIpcServer: PermissionIpcServer | null;
-let versionChecker: VersionChecker;
-let stravuAuthManager: StravuAuthManager;
-let stravuNotebookService: StravuNotebookService;
 
 // Store original console methods before overriding
 // These must be captured immediately when the module loads
@@ -77,6 +70,8 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    show: false, // Don't show window until ready
+    backgroundColor: '#111827', // Match dark theme (gray-900)
     icon: path.join(__dirname, '../assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -89,9 +84,17 @@ async function createWindow() {
     } : {})
   });
 
+  // Show window when ready to prevent white flash (set up listener before loading)
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
+
   if (isDevelopment) {
     await mainWindow.loadURL('http://localhost:4521');
-    mainWindow.webContents.openDevTools();
+    // Delay dev tools opening to reduce startup sounds
+    setTimeout(() => {
+      mainWindow?.webContents.openDevTools();
+    }, 1000);
     
     // Enable IPC debugging in development
     console.log('[Main] 🔍 IPC debugging enabled - check DevTools console for IPC call logs');
@@ -100,13 +103,7 @@ async function createWindow() {
     const originalHandle = ipcMain.handle;
     ipcMain.handle = function(channel: string, listener: any) {
       const wrappedListener = async (event: any, ...args: any[]) => {
-        if (channel.startsWith('stravu:')) {
-          console.log(`[IPC] 📞 ${channel}`, args.length > 0 ? args : '(no args)');
-        }
         const result = await listener(event, ...args);
-        if (channel.startsWith('stravu:')) {
-          console.log(`[IPC] 📤 ${channel} response:`, result);
-        }
         return result;
       };
       return originalHandle.call(this, channel, wrappedListener);
@@ -346,10 +343,23 @@ async function initializeServices() {
   worktreeNameGenerator = new WorktreeNameGenerator(configManager);
   runCommandManager = new RunCommandManager(databaseService);
   
-  // Initialize version checker
-  versionChecker = new VersionChecker(configManager, logger);
-  stravuAuthManager = new StravuAuthManager(logger);
-  stravuNotebookService = new StravuNotebookService(stravuAuthManager, logger);
+  
+  // Import LocalDocumentService
+  const { LocalDocumentService } = await import('./services/localDocumentService');
+  const localDocumentService = new LocalDocumentService(databaseService, logger);
+  
+  // Import PRP Service
+  const { PRPService } = await import('./services/prpService');
+  const prpService = new PRPService(databaseService, logger);
+  
+  // Import Template and PRP Generation services
+  const { TemplateService } = await import('./services/templateService');
+  const { PRPGenerationService } = await import('./services/prpGenerationService');
+  const templateService = new TemplateService(logger);
+  const prpGenerationService = new PRPGenerationService(templateService, logger, configManager);
+  
+  // Initialize templates
+  await templateService.initialize(configManager.getConfig().customTemplatePaths);
 
   taskQueue = new TaskQueue({
     sessionManager,
@@ -358,6 +368,8 @@ async function initializeServices() {
     gitDiffManager,
     executionTracker,
     worktreeNameGenerator,
+    localDocumentService,
+    prpService,
     getMainWindow: () => mainWindow
   });
 
@@ -372,9 +384,10 @@ async function initializeServices() {
     executionTracker,
     worktreeNameGenerator,
     runCommandManager,
-    versionChecker,
-    stravuAuthManager,
-    stravuNotebookService,
+    localDocumentService,
+    prpService,
+    templateService,
+    prpGenerationService,
     taskQueue,
     getMainWindow: () => mainWindow,
   };
@@ -383,8 +396,6 @@ async function initializeServices() {
   setupEventListeners(services, () => mainWindow);
   registerIpcHandlers(services);
   
-  // Start periodic version checking (only if enabled in settings)
-  versionChecker.startPeriodicCheck();
 }
 
 app.whenReady().then(async () => {
@@ -394,14 +405,6 @@ app.whenReady().then(async () => {
   await createWindow();
   console.log('[Main] Window created successfully');
   
-  // Configure auto-updater
-  setupAutoUpdater(() => mainWindow);
-  
-  // Check for updates after window is created
-  setTimeout(async () => {
-    console.log('[Main] Performing startup version check...');
-    await versionChecker.checkOnStartup();
-  }, 1000); // Small delay to ensure window is fully ready
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -451,10 +454,6 @@ app.on('before-quit', async () => {
     console.log('[Main] Permission IPC server stopped');
   }
   
-  // Stop version checker
-  if (versionChecker) {
-    versionChecker.stopPeriodicCheck();
-  }
 
   // Close logger to ensure all logs are flushed
   if (logger) {

@@ -3,7 +3,6 @@ import { useSessionStore } from '../stores/sessionStore';
 import { JsonMessageView } from './JsonMessageView';
 import { EmptyState } from './EmptyState';
 import CombinedDiffView from './CombinedDiffView';
-import { StravuFileSearch } from './StravuFileSearch';
 import { Inbox } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import { useSessionView } from '../hooks/useSessionView';
@@ -190,8 +189,6 @@ export const SessionView = memo(() => {
           handleTerminalCommand={hook.handleTerminalCommand}
           handleSendInput={hook.handleSendInput}
           handleContinueConversation={hook.handleContinueConversation}
-          isStravuConnected={hook.isStravuConnected}
-          setShowStravuSearch={hook.setShowStravuSearch}
           ultrathink={hook.ultrathink}
           setUltrathink={hook.setUltrathink}
           handleToggleAutoCommit={hook.handleToggleAutoCommit}
@@ -218,12 +215,6 @@ export const SessionView = memo(() => {
         formatGitOutput={hook.formatGitOutput}
         getGitErrorTips={hook.getGitErrorTips}
         onAbortAndUseClaude={hook.handleAbortRebaseAndUseClaude}
-      />
-
-      <StravuFileSearch
-        isOpen={hook.showStravuSearch}
-        onClose={() => hook.setShowStravuSearch(false)}
-        onFileSelect={hook.handleStravuFileSelect}
       />
     </div>
   );

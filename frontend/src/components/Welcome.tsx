@@ -1,43 +1,110 @@
-import React from 'react';
-import { Zap, CheckCircle, GitBranch } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Zap, AlertCircle } from 'lucide-react';
 import crystalLogo from '../assets/crystal-logo.svg';
+import { API } from '../utils/api';
 
 interface WelcomeProps {
-  isOpen: boolean;
+  showManually?: boolean;
   onClose: () => void;
 }
 
-export default function Welcome({ isOpen, onClose }: WelcomeProps) {
-  const [dontShowAgain, setDontShowAgain] = React.useState(false);
-  
-  React.useEffect(() => {
-    // Load the preference from database when component mounts
-    const loadPreference = async () => {
-      if (window.electron?.invoke) {
+export default function Welcome({ showManually, onClose }: WelcomeProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [claudeExecutablePath, setClaudeExecutablePath] = useState('');
+  const [claudeTestResult, setClaudeTestResult] = useState<{
+    available: boolean;
+    version?: string;
+    path?: string;
+    error?: string;
+  } | null>(null);
+  const [isTestingClaude, setIsTestingClaude] = useState(false);
+  const [hasAutoTested, setHasAutoTested] = useState(false);
+
+
+
+  // Auto-test Claude on component mount
+  useEffect(() => {
+    if (!hasAutoTested) {
+      const loadClaudeConfig = async () => {
         try {
-          console.log('[Welcome] Loading hide_welcome preference...');
-          const result = await window.electron.invoke('preferences:get', 'hide_welcome');
-          console.log('[Welcome] Preference result:', result);
-          
-          if (result?.success) {
-            // Handle null (preference doesn't exist) as false
-            const shouldHide = result.data === 'true';
-            setDontShowAgain(shouldHide);
-            console.log('[Welcome] Set dontShowAgain to:', shouldHide);
-          } else {
-            console.error('[Welcome] Failed to load preference:', result?.error);
+          const response = await API.config.get();
+          if (response.success && response.data) {
+            setClaudeExecutablePath(response.data.claudeExecutablePath || '');
+            // Auto-test Claude availability
+            const testResult = await testClaude(response.data.claudeExecutablePath);
+            // Only show dialog if Claude is not available
+            if (!testResult?.available) {
+              setIsVisible(true);
+            }
+            setHasAutoTested(true);
           }
         } catch (error) {
-          console.error('[Welcome] Error loading preference:', error);
+          console.error('Failed to load Claude config:', error);
+          // Show dialog on error
+          setIsVisible(true);
+          setHasAutoTested(true);
         }
+      };
+      loadClaudeConfig();
+    }
+  }, [hasAutoTested]);
+
+  // Show dialog when manually triggered
+  useEffect(() => {
+    if (showManually) {
+      setIsVisible(true);
+    }
+  }, [showManually]);
+
+
+  const testClaude = async (customPath?: string) => {
+    setIsTestingClaude(true);
+    setClaudeTestResult(null);
+    
+    try {
+      const response = await API.config.testClaude(customPath);
+      if (response.success && response.data) {
+        setClaudeTestResult(response.data);
+        return response.data;
       } else {
-        console.warn('[Welcome] Electron invoke not available');
+        const result = {
+          available: false,
+          error: response.error || 'Failed to test Claude'
+        };
+        setClaudeTestResult(result);
+        return result;
       }
-    };
-    loadPreference();
-  }, []);
+    } catch (err) {
+      const result = {
+        available: false,
+        error: err instanceof Error ? err.message : 'Failed to test Claude'
+      };
+      setClaudeTestResult(result);
+      return result;
+    } finally {
+      setIsTestingClaude(false);
+    }
+  };
+
+
+  const saveClaudePath = async () => {
+    try {
+      const response = await API.config.update({ claudeExecutablePath });
+      if (response.success) {
+        // Re-test with the new path
+        testClaude(claudeExecutablePath);
+      }
+    } catch (error) {
+      console.error('Failed to save Claude path:', error);
+    }
+  };
   
-  if (!isOpen) return null;
+  const handleClose = () => {
+    setIsVisible(false);
+    onClose();
+  };
+
+  if (!isVisible) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -64,26 +131,105 @@ export default function Welcome({ isOpen, onClose }: WelcomeProps) {
                 Quick Start Guide
               </h2>
               
-              {/* Prerequisites */}
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2 flex items-center">
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  Before You Begin
+              {/* Claude Setup Section */}
+              <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                  <AlertCircle className="h-5 w-5 mr-2 text-blue-500" />
+                  Claude Code Setup
                 </h3>
-                <ul className="space-y-2 text-amber-800 dark:text-amber-300">
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>Claude Code must be installed with credentials configured</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>We recommend using a <strong>MAX plan</strong> for best performance</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>Crystal runs Claude Code with <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded text-sm">--dangerously-ignore-permissions</code></span>
-                  </li>
-                </ul>
+                
+                <div className="space-y-3">
+                
+                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                    <p className="font-medium">Requirements:</p>
+                    <ul className="space-y-1 ml-4">
+                      <li>• Claude Code must be installed with credentials configured</li>
+                      <li>• We recommend using a <strong>MAX plan</strong> for best performance</li>
+                      <li>• Crystal runs Claude Code with <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded text-xs">--dangerously-ignore-permissions</code></li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <label htmlFor="claudePath" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Claude Executable Path (Optional)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="claudePath"
+                        type="text"
+                        value={claudeExecutablePath}
+                        onChange={(e) => setClaudeExecutablePath(e.target.value)}
+                        onBlur={saveClaudePath}
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
+                        placeholder="/usr/local/bin/claude"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const result = await API.dialog.openFile({
+                            title: 'Select Claude Executable',
+                            buttonLabel: 'Select',
+                            properties: ['openFile'],
+                            filters: [
+                              { name: 'Executables', extensions: ['*'] }
+                            ]
+                          });
+                          if (result.success && result.data) {
+                            setClaudeExecutablePath(result.data);
+                            await saveClaudePath();
+                          }
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Browse
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => testClaude(claudeExecutablePath)}
+                        disabled={isTestingClaude}
+                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {isTestingClaude ? 'Testing...' : 'Test'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Leave empty to use claude from PATH. This is useful if Claude is installed in a non-standard location.
+                    </p>
+                  </div>
+                  
+                  {/* Test Result */}
+                  {claudeTestResult && (
+                    <div className={`mt-2 p-3 rounded-md text-sm ${
+                      claudeTestResult.available 
+                        ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800' 
+                        : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
+                    }`}>
+                      {claudeTestResult.available ? (
+                        <div className="text-green-800 dark:text-green-200">
+                          <div className="font-medium mb-1">✓ Claude Code is available</div>
+                          {claudeTestResult.version && (
+                            <div className="text-xs">Version: {claudeTestResult.version}</div>
+                          )}
+                          {claudeTestResult.path && (
+                            <div className="text-xs">Path: {claudeTestResult.path}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-red-800 dark:text-red-200">
+                          <div className="font-medium mb-1">✗ Claude Code not found</div>
+                          {claudeTestResult.error && (
+                            <div className="text-xs">{claudeTestResult.error}</div>
+                          )}
+                          <div className="text-xs mt-1">
+                            Please ensure Claude Code is installed and accessible from the command line.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+
+                </div>
               </div>
 
               {/* Steps */}
@@ -93,11 +239,11 @@ export default function Welcome({ isOpen, onClose }: WelcomeProps) {
                     1
                   </div>
                   <div className="ml-4 flex-1">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Create or Select a Project</h4>
-                    <ul className="text-gray-600 dark:text-gray-400 space-y-1 text-sm">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Create a PRP</h4>
+                    {/*}<ul className="text-gray-600 dark:text-gray-400 space-y-1 text-sm">
                       <li>• Point to a <strong>new directory</strong> - Crystal will create it and initialize git</li>
                       <li>• Or select an <strong>existing git repository</strong></li>
-                    </ul>
+                    </ul>{*/}
                   </div>
                 </div>
 
@@ -106,12 +252,8 @@ export default function Welcome({ isOpen, onClose }: WelcomeProps) {
                     2
                   </div>
                   <div className="ml-4 flex-1">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Create Sessions</h4>
-                    <ul className="text-gray-600 dark:text-gray-400 space-y-1 text-sm">
-                      <li>• Enter a prompt describing what you want Claude to do</li>
-                      <li>• <strong>Create multiple sessions</strong> with different prompts to explore various approaches</li>
-                      <li>• Or <strong>run the same prompt multiple times</strong> to choose the best result</li>
-                    </ul>
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Create or Select a Project</h4>
+
                   </div>
                 </div>
 
@@ -120,18 +262,24 @@ export default function Welcome({ isOpen, onClose }: WelcomeProps) {
                     3
                   </div>
                   <div className="ml-4 flex-1">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Create Sessions</h4>
+
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 dark:bg-blue-900 rounded-full flex items-center justify-center text-white dark:text-blue-300 font-semibold">
+                    4
+                  </div>
+                  <div className="ml-4 flex-1">
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Work with Results</h4>
-                    <ul className="text-gray-600 dark:text-gray-400 space-y-1 text-sm">
-                      <li>• View changes in the <strong>View Diff tab</strong></li>
-                      <li>• <strong>Continue conversations</strong> to refine the solution</li>
-                      <li>• <strong>Rebase back to main</strong> when you're done</li>
-                    </ul>
                   </div>
                 </div>
               </div>
             </section>
 
             {/* Key Features */}
+            {/*}
             <section className="border-t pt-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
                 <GitBranch className="h-5 w-5 mr-2" />
@@ -156,42 +304,13 @@ export default function Welcome({ isOpen, onClose }: WelcomeProps) {
                 </div>
               </div>
             </section>
+            {*/}
           </div>
         </div>
         
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
           <button
-            onClick={async () => {
-              const newValue = !dontShowAgain;
-              console.log('[Welcome Debug] Don\'t show again clicked:', newValue);
-              setDontShowAgain(newValue);
-              if (window.electron?.invoke) {
-                try {
-                  const result = await window.electron.invoke('preferences:set', 'hide_welcome', newValue ? 'true' : 'false');
-                  if (result?.success) {
-                    console.log('[Welcome Debug] Successfully set hide_welcome preference to', newValue);
-                  } else {
-                    console.error('[Welcome Debug] Failed to set preference:', result?.error);
-                  }
-                } catch (error) {
-                  console.error('[Welcome Debug] Error setting preference:', error);
-                }
-              }
-              // Close the popup when don't show again is clicked and set to true
-              if (newValue) {
-                onClose();
-              }
-            }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              dontShowAgain
-                ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            {dontShowAgain ? "Will hide on next launch" : "Don't show this again"}
-          </button>
-          <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Get Started

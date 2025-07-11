@@ -1,5 +1,6 @@
 import { IpcMain } from 'electron';
 import type { AppServices } from './types';
+import { testClaudeCodeAvailability } from '../utils/claudeCodeTest';
 
 export function registerConfigHandlers(ipcMain: IpcMain, { configManager, claudeCodeManager }: AppServices): void {
   ipcMain.handle('config:get', async () => {
@@ -31,6 +32,29 @@ export function registerConfigHandlers(ipcMain: IpcMain, { configManager, claude
     } catch (error) {
       console.error('Failed to update config:', error);
       return { success: false, error: 'Failed to update config' };
+    }
+  });
+
+  ipcMain.handle('config:test-claude', async (_event, customPath?: string) => {
+    try {
+      console.log('[Config] Testing Claude Code availability...');
+      const result = await testClaudeCodeAvailability(customPath || configManager.getConfig().claudeExecutablePath);
+      
+      return { 
+        success: true, 
+        data: {
+          available: result.available,
+          version: result.version,
+          path: result.path,
+          error: result.error
+        }
+      };
+    } catch (error) {
+      console.error('Failed to test Claude:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to test Claude availability' 
+      };
     }
   });
 } 

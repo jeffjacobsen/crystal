@@ -1,53 +1,52 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { ConfigManager } from './configManager';
+import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
+import { findExecutableInPath, getShellPath } from '../utils/shellPath';
 
 export class WorktreeNameGenerator {
-  private anthropic: Anthropic | null = null;
   private configManager: ConfigManager;
+  private claudePath: string | null = null;
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
-    this.initializeAnthropic();
-    
-    // Listen for config updates to reinitialize Anthropic client if API key changes
-    this.configManager.on('config-updated', () => {
-      console.log('[WorktreeNameGenerator] Config updated, reinitializing Anthropic client...');
-      this.initializeAnthropic();
-    });
+    this.initializeClaude();
   }
 
-  private initializeAnthropic(): void {
-    const apiKey = this.configManager.getAnthropicApiKey();
-    if (apiKey) {
-      console.log('[WorktreeNameGenerator] Initializing Anthropic client with API key');
-      this.anthropic = new Anthropic({
-        apiKey: apiKey
-      });
+  private initializeClaude(): void {
+    // Check for custom Claude path
+    const customPath = this.configManager.getConfig()?.claudeExecutablePath;
+    if (customPath) {
+      this.claudePath = customPath;
+      console.log('[WorktreeNameGenerator] Using custom Claude path:', customPath);
+      return;
+    }
+    
+    // Find Claude in PATH
+    const foundPath = findExecutableInPath('claude');
+    if (foundPath) {
+      this.claudePath = foundPath;
+      console.log('[WorktreeNameGenerator] Found Claude in PATH:', foundPath);
     } else {
-      console.log('[WorktreeNameGenerator] No API key found, AI name generation disabled');
-      this.anthropic = null;
+      console.log('[WorktreeNameGenerator] Claude not found, AI name generation disabled');
+      this.claudePath = null;
     }
   }
 
   async generateWorktreeName(prompt: string): Promise<string> {
-    if (!this.anthropic) {
-      console.log('[WorktreeNameGenerator] No Anthropic client available, using fallback name generation');
-      // Fallback to basic name generation if no API key
-      return this.generateFallbackName(prompt);
+    console.log('[WorktreeNameGenerator] generateWorktreeName called');
+    console.log('[WorktreeNameGenerator] Claude path:', this.claudePath);
+    
+    if (!this.claudePath) {
+      console.log('[WorktreeNameGenerator] Claude not available, using fallback name generation');
+      const fallbackName = this.generateFallbackName(prompt);
+      console.log('[WorktreeNameGenerator] Fallback name generated:', fallbackName);
+      return fallbackName;
     }
 
     console.log('[WorktreeNameGenerator] Attempting AI-powered name generation for prompt:', prompt.substring(0, 50) + '...');
-    try {
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-haiku-20240307', // Using Haiku for fast, cost-effective naming
-        max_tokens: 50,
-        temperature: 0.3,
-        messages: [
-          {
-            role: 'user',
-            content: `You are a developer assistant that generates concise, descriptive git worktree names. 
+    
+    const claudePrompt = `You are a developer assistant that generates concise, descriptive git worktree names. 
             
 Rules:
 - Generate a short, descriptive name (2-4 words max)
@@ -65,25 +64,39 @@ Examples:
 
 Generate a worktree name for this coding task: "${prompt}"
 
-Respond with ONLY the worktree name, nothing else.`
-          }
-        ]
-      });
+Respond with ONLY the worktree name, nothing else.`;
 
-      const content = response.content[0];
-      if (content.type === 'text' && content.text) {
-        const generatedName = content.text.trim();
-        if (generatedName) {
-          const sanitized = this.sanitizeName(generatedName);
-          console.log('[WorktreeNameGenerator] AI generated name:', sanitized);
-          return sanitized;
+    try {
+      // Use Claude Code with --print flag to get quick response
+      const result = execSync(
+        `${this.claudePath} --print --output-format text`,
+        {
+          input: claudePrompt,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: getShellPath()
+          },
+          timeout: 15000, // 15 second timeout for name generation
+          maxBuffer: 1024 * 1024 // 1MB buffer
         }
+      );
+
+      const generatedName = result.trim();
+      console.log('[WorktreeNameGenerator] Raw Claude Code response:', generatedName);
+      
+      if (generatedName) {
+        const sanitized = this.sanitizeName(generatedName);
+        console.log('[WorktreeNameGenerator] Claude generated name (sanitized):', sanitized);
+        return sanitized;
+      } else {
+        console.log('[WorktreeNameGenerator] Claude Code returned empty response');
       }
     } catch (error) {
-      console.error('Error generating worktree name with Anthropic:', error);
+      console.error('[WorktreeNameGenerator] Error generating worktree name with Claude Code:', error);
     }
 
-    // Fallback if Anthropic fails
+    // Fallback if Claude fails
     return this.generateFallbackName(prompt);
   }
 

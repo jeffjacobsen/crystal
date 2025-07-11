@@ -17,11 +17,6 @@ export function registerGitHandlers(ipcMain: IpcMain, services: AppServices): vo
       const project = sessionManager.getProjectForSession(sessionId);
       // Get the main branch from the project directory's current branch
       const mainBranch = project?.path ? await worktreeManager.getProjectMainBranch(project.path) : 'main';
-      
-      console.log(`[IPC:git] Getting commits for session ${sessionId}`);
-      console.log(`[IPC:git] Project path: ${project?.path || 'not found'}`);
-      console.log(`[IPC:git] Detected main branch: ${mainBranch}`);
-      
       const commits = gitDiffManager.getCommitHistory(session.worktreePath, 50, mainBranch);
 
       // Check for uncommitted changes
@@ -79,8 +74,8 @@ export function registerGitHandlers(ipcMain: IpcMain, services: AppServices): vo
 
       // Get git commit history
       const project = sessionManager.getProjectForSession(sessionId);
-      // Get the effective main branch (override or auto-detected)
-      const mainBranch = project ? await worktreeManager.getProjectMainBranch(project.path) : 'main';
+      // Get the main branch from the project directory's current branch
+      const mainBranch = project?.path ? await worktreeManager.getProjectMainBranch(project.path) : 'main';
       const commits = gitDiffManager.getCommitHistory(session.worktreePath, 50, mainBranch);
       const executionIndex = parseInt(executionId) - 1;
 
@@ -210,8 +205,8 @@ EOF
 
       // Get git commit history
       const project = sessionManager.getProjectForSession(sessionId);
-      // Get the effective main branch (override or auto-detected)
-      const mainBranch = project ? await worktreeManager.getProjectMainBranch(project.path) : 'main';
+      // Get the main branch from the project directory's current branch
+      const mainBranch = project?.path ? await worktreeManager.getProjectMainBranch(project.path) : 'main';
       const commits = gitDiffManager.getCommitHistory(session.worktreePath, 50, mainBranch);
 
       if (!commits.length) {
@@ -455,7 +450,7 @@ EOF
         return { success: false, error: 'Project not found for session' };
       }
 
-      // Get the effective main branch (override or auto-detected)
+      // Get the main branch from the project directory's current branch
       const mainBranch = await worktreeManager.getProjectMainBranch(project.path);
 
       // Add message to session output about starting the rebase
@@ -522,7 +517,7 @@ EOF
         return { success: false, error: 'Project not found for session' };
       }
 
-      // Get the effective main branch (override or auto-detected)
+      // Get the main branch from the project directory's current branch
       const mainBranch = await worktreeManager.getProjectMainBranch(project.path);
 
       // First, abort the rebase
@@ -615,7 +610,7 @@ EOF
         return { success: false, error: 'Project not found for session' };
       }
 
-      // Get the effective main branch (override or auto-detected)
+      // Get the main branch from the project directory's current branch
       const mainBranch = await worktreeManager.getProjectMainBranch(project.path);
 
       // Add message to session output about starting the squash and rebase
@@ -684,7 +679,7 @@ EOF
         return { success: false, error: 'Project not found for session' };
       }
 
-      // Get the effective main branch (override or auto-detected)
+      // Get the main branch from the project directory's current branch
       const mainBranch = await worktreeManager.getProjectMainBranch(project.path);
 
       // Add message to session output about starting the rebase
@@ -917,7 +912,7 @@ EOF
         return { success: false, error: 'Project not found for session' };
       }
 
-      // Get the effective main branch (override or auto-detected)
+      // Get the main branch from the project directory's current branch
       const mainBranch = await worktreeManager.getProjectMainBranch(project.path);
       const hasChanges = await worktreeManager.hasChangesToRebase(session.worktreePath, mainBranch);
 
@@ -940,7 +935,7 @@ EOF
         return { success: false, error: 'Project not found for session' };
       }
 
-      // Get the effective main branch (override or auto-detected)
+      // Get the main branch from the project directory's current branch
       const mainBranch = await worktreeManager.getProjectMainBranch(project.path);
 
       // Get current branch name

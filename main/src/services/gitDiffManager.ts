@@ -101,19 +101,13 @@ export class GitDiffManager {
       // Get commit log with stats, excluding commits that are in main branch
       // This shows only commits unique to the current branch
       const logFormat = '%H|%s|%ai|%an';
-      const gitCommand = `git log --format="${logFormat}" --numstat -n ${limit} HEAD --not ${mainBranch} --`;
-      
-      console.log(`[GitDiffManager] Getting commit history for worktree: ${worktreePath}`);
-      console.log(`[GitDiffManager] Main branch: ${mainBranch}`);
-      console.log(`[GitDiffManager] Git command: ${gitCommand}`);
-      
-      const logOutput = execSync(gitCommand, { cwd: worktreePath, encoding: 'utf8' });
-      console.log(`[GitDiffManager] Git log output length: ${logOutput.length} characters`);
-      console.log(`[GitDiffManager] Git log output (first 200 chars): ${logOutput.substring(0, 200)}`);
+      const logOutput = execSync(
+        `git log --format="${logFormat}" --numstat -n ${limit} HEAD --not ${mainBranch} --`,
+        { cwd: worktreePath, encoding: 'utf8' }
+      );
 
       const commits: GitCommit[] = [];
       const lines = logOutput.trim().split('\n');
-      console.log(`[GitDiffManager] Total lines to parse: ${lines.length}`);
       
       let currentCommit: GitCommit | null = null;
       let statsLines: string[] = [];
@@ -164,25 +158,13 @@ export class GitDiffManager {
         currentCommit.stats = stats;
       }
 
-      console.log(`[GitDiffManager] Found ${commits.length} commits unique to this branch`);
-      if (commits.length === 0) {
-        console.log(`[GitDiffManager] No unique commits found. This could mean:`);
-        console.log(`[GitDiffManager]   - The branch is up-to-date with ${mainBranch}`);
-        console.log(`[GitDiffManager]   - The branch has been rebased onto ${mainBranch}`);
-        console.log(`[GitDiffManager]   - The ${mainBranch} branch doesn't exist in this worktree`);
-        console.log(`[GitDiffManager] Raw output was: "${logOutput}"`);
-      }
-
       return commits;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger?.error('Failed to get commit history', error instanceof Error ? error : undefined);
-      console.error(`[GitDiffManager] Error getting commit history: ${errorMessage}`);
-      console.error(`[GitDiffManager] Full error:`, error);
       
       // If it's a git command error, throw it so the caller can handle it appropriately
       if (errorMessage.includes('fatal:') || errorMessage.includes('error:')) {
-        console.error(`[GitDiffManager] Git command failed. This might happen if the ${mainBranch} branch doesn't exist.`);
         throw new Error(`Git error: ${errorMessage}`);
       }
       

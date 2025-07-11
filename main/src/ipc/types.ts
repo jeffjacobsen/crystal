@@ -8,10 +8,11 @@ import type { GitDiffManager } from '../services/gitDiffManager';
 import type { ExecutionTracker } from '../services/executionTracker';
 import type { DatabaseService } from '../database/database';
 import type { RunCommandManager } from '../services/runCommandManager';
-import type { VersionChecker } from '../services/versionChecker';
-import type { StravuAuthManager } from '../services/stravuAuthManager';
-import type { StravuNotebookService } from '../services/stravuNotebookService';
 import type { ClaudeCodeManager } from '../services/claudeCodeManager';
+import type { LocalDocumentService } from '../services/localDocumentService';
+import type { PRPService } from '../services/prpService';
+import type { TemplateService } from '../services/templateService';
+import type { PRPGenerationService } from '../services/prpGenerationService';
 
 export interface AppServices {
   app: App;
@@ -24,9 +25,10 @@ export interface AppServices {
   executionTracker: ExecutionTracker;
   worktreeNameGenerator: WorktreeNameGenerator;
   runCommandManager: RunCommandManager;
-  versionChecker: VersionChecker;
-  stravuAuthManager: StravuAuthManager;
-  stravuNotebookService: StravuNotebookService;
+  localDocumentService: LocalDocumentService;
+  prpService: PRPService;
+  templateService: TemplateService;
+  prpGenerationService: PRPGenerationService;
   taskQueue: TaskQueue | null;
   getMainWindow: () => BrowserWindow | null;
 } 

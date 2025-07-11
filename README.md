@@ -1,21 +1,47 @@
-# Crystal - Multi-Session Claude Code Manager
+# Crystal - Multi-Session Claude Code Manager (Enhanced Fork)
 
-<div align="center">
-  <h3><a href="https://github.com/stravu/crystal/releases/latest">**Get the Latest Release Here**</a></h3>
-</div>
+> **Note**: This is an enhanced fork of Crystal with Product Requirement Prompts (PRPs) for structured AI-assisted development. Test users should follow the instructions below to run from source.
 
-<div align="center">
+## 🚀 Quick Start for Test Users
 
-[![Join our Discord](https://img.shields.io/badge/Join%20our-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/XrVa6q7DPY)
+### Prerequisites
+- Node.js 18+ and pnpm installed
+- Claude Code CLI installed and logged in
+- Git installed
 
-</div>
+### Running from Source
 
-Crystal is an Electron desktop application that lets you run, inspect, and test multiple Claude Code instances simultaneously using git worktrees. Crystal is an independent project created by [Stravu](https://stravu.com/). Stravu provides editable, collaborate AI notebooks with text, tables, diagrams.
+```bash
+# Clone the enhanced fork
+git clone https://github.com/[your-username]/crystal.git
+cd crystal
 
+# Checkout the PRP-enhanced branch
+git checkout feature/prp-enhanced
 
+# Install dependencies and build
+pnpm run setup
 
-https://github.com/user-attachments/assets/e32f0ee7-c25a-43d6-a704-8a39878032eb
+# Run in development mode
+pnpm run dev
+```
 
+### What's New in This Fork?
+- **Product Requirement Prompts (PRPs)**: Structured templates for AI-assisted development
+- **AI-Powered PRP Generation**: Use Claude Code to generate PRPs from templates
+- **Streamlined UI**: Simplified session creation with PRP integration
+- **Enhanced Documentation**: See `/docs` directory for detailed information
+
+For detailed documentation about our enhancements, see the `/docs` directory:
+- `docs/ADAPTATION_PLAN.md` - Original vision and implementation roadmap
+- `docs/PROGRESS_SUMMARY.md` - Detailed list of all changes and enhancements
+- `docs/PRP-TEMPLATE-SYSTEM.md` - Complete PRP template system documentation
+
+---
+
+## Original Crystal Overview
+
+Crystal is an Electron desktop application that lets you run, inspect, and test multiple Claude Code instances simultaneously using git worktrees. It provides structured development with Product Requirement Prompts (PRPs) that guide AI-assisted development for longer coding sessions.
 
 
 ## The Crystal Workflow
@@ -34,11 +60,13 @@ https://github.com/user-attachments/assets/e32f0ee7-c25a-43d6-a704-8a39878032eb
 - **📊 Change Tracking** - View diffs and track modifications
 - **🔔 Notifications** - Desktop alerts when sessions need input
 - **🏗️ Run Scripts** - Test changes instantly without leaving Crystal
+- **📋 Product Requirement Prompts** - Structured development with AI-assisted PRP generation
+- **🎯 Focused Workflow** - Streamlined session creation with PRP integration
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Claude Code installed and logged in or API key provided
+- Claude Code installed and logged in
 - Git installed
 - Git repository (Crystal will initialize one if needed)
 
@@ -48,6 +76,8 @@ Create a new project if you haven't already. This can be an empty folder or an e
 ### 2. Create Sessions from a Prompt
 For any feature you're working on, create one or multiple new sessions:
 - Each session will be an isolated git worktree
+- Optionally select a Product Requirement Prompt (PRP) to guide development
+- PRPs can be generated with AI assistance using Claude Code
 
 ### 3. Monitor and Test Your Changes
 As sessions complete:
@@ -71,9 +101,7 @@ When everything looks good:
 
 ### Download Pre-built Binaries
 
-- **macOS**: Download `Crystal-{version}.dmg` from the [latest release](https://github.com/stravu/crystal/releases/latest)
-  - Open the DMG file and drag Crystal to your Applications folder
-  - On first launch, you may need to right-click and select "Open" due to macOS security settings
+Pre-built binaries are not yet available for this enhanced fork. Please run from source using the instructions above.
 
 
 ## Building from Source
@@ -134,12 +162,4 @@ pnpm run generate-notices
 
 ## Disclaimer
 
-Crystal is an independent project created by [Stravu](https://stravu.com/). Claude™ is a trademark of Anthropic, PBC. Crystal is not affiliated with, endorsed by, or sponsored by Anthropic. This tool is designed to work with Claude Code, which must be installed separately.
-
----
-
-<div align="center">
-  <img src="frontend/public/stravu-logo.png" alt="Stravu Logo" width="80" height="80">
-  <br>
-  Made with ❤️ by <a href="https://stravu.com/">Stravu</a>
-</div>
+Crystal is an independent open-source project. Claude™ is a trademark of Anthropic, PBC. Crystal is not affiliated with, endorsed by, or sponsored by Anthropic. This tool is designed to work with Claude Code, which must be installed separately.

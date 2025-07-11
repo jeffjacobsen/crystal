@@ -4,7 +4,7 @@ import { join, dirname } from 'path';
 import type { Project, ProjectRunCommand, Folder, Session, SessionOutput, CreateSessionData, UpdateSessionData, ConversationMessage, PromptMarker, ExecutionDiff, CreateExecutionDiffData } from './models';
 
 export class DatabaseService {
-  private db: Database.Database;
+  db: Database.Database; // Made public for LocalDocumentService access
 
   constructor(dbPath: string) {
     // Ensure the directory exists before creating the database
@@ -320,13 +320,28 @@ export class DatabaseService {
       console.log('[Database] Running timestamp normalization migration...');
       
       try {
-        // Create new temporary columns with DATETIME type
-        this.db.prepare("ALTER TABLE sessions ADD COLUMN last_viewed_at_new DATETIME").run();
-        this.db.prepare("ALTER TABLE sessions ADD COLUMN run_started_at_new DATETIME").run();
+        // Check if temporary columns already exist
+        const hasLastViewedAtNew = sessionTableInfoTimestamp.some((col: any) => col.name === 'last_viewed_at_new');
+        const hasRunStartedAtNew = sessionTableInfoTimestamp.some((col: any) => col.name === 'run_started_at_new');
         
-        // Copy and convert existing data
-        this.db.prepare("UPDATE sessions SET last_viewed_at_new = datetime(last_viewed_at) WHERE last_viewed_at IS NOT NULL").run();
-        this.db.prepare("UPDATE sessions SET run_started_at_new = datetime(run_started_at) WHERE run_started_at IS NOT NULL").run();
+        // Create new temporary columns with DATETIME type (only if they don't exist)
+        if (!hasLastViewedAtNew) {
+          this.db.prepare("ALTER TABLE sessions ADD COLUMN last_viewed_at_new DATETIME").run();
+        }
+        if (!hasRunStartedAtNew) {
+          this.db.prepare("ALTER TABLE sessions ADD COLUMN run_started_at_new DATETIME").run();
+        }
+        
+        // Copy and convert existing data (only if source columns exist)
+        const hasLastViewedAt = sessionTableInfoTimestamp.some((col: any) => col.name === 'last_viewed_at');
+        const hasRunStartedAt = sessionTableInfoTimestamp.some((col: any) => col.name === 'run_started_at');
+        
+        if (hasLastViewedAt) {
+          this.db.prepare("UPDATE sessions SET last_viewed_at_new = datetime(last_viewed_at) WHERE last_viewed_at IS NOT NULL").run();
+        }
+        if (hasRunStartedAt) {
+          this.db.prepare("UPDATE sessions SET run_started_at_new = datetime(run_started_at) WHERE run_started_at IS NOT NULL").run();
+        }
         
         // Create a backup of the table with proper schema
         this.db.prepare(`
@@ -579,7 +594,6 @@ export class DatabaseService {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           opened_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           welcome_hidden BOOLEAN DEFAULT 0,
-          discord_shown BOOLEAN DEFAULT 0
         )
       `).run();
       this.db.prepare("CREATE INDEX idx_app_opens_opened_at ON app_opens(opened_at)").run();
@@ -605,14 +619,12 @@ export class DatabaseService {
       this.db.prepare(`
         INSERT INTO user_preferences (key, value) VALUES 
         ('hide_welcome', 'false'),
-        ('hide_discord', 'false'),
         ('welcome_shown', 'false')
       `).run();
     } else {
       // For existing users, ensure default preferences exist
       const defaultPreferences = [
         { key: 'hide_welcome', value: 'false' },
-        { key: 'hide_discord', value: 'false' },
         { key: 'welcome_shown', value: 'false' }
       ];
       
@@ -633,6 +645,449 @@ export class DatabaseService {
       this.db.prepare("ALTER TABLE projects ADD COLUMN worktree_folder TEXT").run();
       console.log('[Database] Added worktree_folder column to projects table');
     }
+
+    // Add support for local documents and PRD
+    const documentsTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'").all();
+    if (documentsTable.length === 0) {
+      console.log('[Database] Creating documents and PRD tables...');
+      
+      // Product Requirements Documents table
+      this.db.prepare(`
+        CREATE TABLE product_requirements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          version INTEGER DEFAULT 1,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+      `).run();
+      
+      // Local documents table
+      this.db.prepare(`
+        CREATE TABLE documents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          excerpt TEXT,
+          category TEXT DEFAULT 'general',
+          tags TEXT,
+          word_count INTEGER,
+          file_path TEXT,
+          url TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+      `).run();
+      
+      // Full-text search index for documents
+      this.db.prepare(`
+        CREATE VIRTUAL TABLE documents_fts USING fts5(
+          title, 
+          content, 
+          tags,
+          content=documents,
+          content_rowid=id
+        )
+      `).run();
+      
+      // Triggers to keep FTS index in sync
+      this.db.prepare(`
+        CREATE TRIGGER documents_ai AFTER INSERT ON documents BEGIN
+          INSERT INTO documents_fts(rowid, title, content, tags)
+          VALUES (new.id, new.title, new.content, new.tags);
+        END
+      `).run();
+      
+      this.db.prepare(`
+        CREATE TRIGGER documents_au AFTER UPDATE ON documents BEGIN
+          INSERT INTO documents_fts(documents_fts, rowid, title, content, tags)
+          VALUES ('delete', old.id, old.title, old.content, old.tags);
+          INSERT INTO documents_fts(rowid, title, content, tags)
+          VALUES (new.id, new.title, new.content, new.tags);
+        END
+      `).run();
+      
+      this.db.prepare(`
+        CREATE TRIGGER documents_ad AFTER DELETE ON documents BEGIN
+          INSERT INTO documents_fts(documents_fts, rowid, title, content, tags)
+          VALUES ('delete', old.id, old.title, old.content, old.tags);
+        END
+      `).run();
+      
+      // Session documents association
+      this.db.prepare(`
+        CREATE TABLE session_documents (
+          session_id TEXT NOT NULL,
+          document_id INTEGER NOT NULL,
+          included_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (session_id, document_id),
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+          FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+        )
+      `).run();
+      
+      // Session PRD association
+      this.db.prepare(`
+        CREATE TABLE session_prd (
+          session_id TEXT NOT NULL,
+          prd_id INTEGER NOT NULL,
+          prd_version INTEGER NOT NULL,
+          included_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (session_id),
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+          FOREIGN KEY (prd_id) REFERENCES product_requirements(id) ON DELETE CASCADE
+        )
+      `).run();
+      
+      // File index for local search
+      this.db.prepare(`
+        CREATE TABLE file_index (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          file_path TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          file_type TEXT,
+          size INTEGER,
+          modified_at DATETIME,
+          content_preview TEXT,
+          indexed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+      `).run();
+      
+      // Session milestones
+      this.db.prepare(`
+        CREATE TABLE session_milestones (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          completed BOOLEAN DEFAULT FALSE,
+          completed_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        )
+      `).run();
+      
+      // Session metrics
+      this.db.prepare(`
+        CREATE TABLE session_metrics (
+          session_id TEXT PRIMARY KEY,
+          total_time_seconds INTEGER DEFAULT 0,
+          tokens_used INTEGER DEFAULT 0,
+          commits_made INTEGER DEFAULT 0,
+          files_changed INTEGER DEFAULT 0,
+          lines_added INTEGER DEFAULT 0,
+          lines_deleted INTEGER DEFAULT 0,
+          last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        )
+      `).run();
+      
+      // Create indexes
+      this.db.prepare("CREATE INDEX idx_documents_project ON documents(project_id)").run();
+      this.db.prepare("CREATE INDEX idx_documents_category ON documents(category)").run();
+      this.db.prepare("CREATE INDEX idx_prd_project ON product_requirements(project_id)").run();
+      this.db.prepare("CREATE INDEX idx_prd_active ON product_requirements(project_id, is_active)").run();
+      this.db.prepare("CREATE INDEX idx_file_index_project ON file_index(project_id)").run();
+      this.db.prepare("CREATE INDEX idx_session_milestones_session ON session_milestones(session_id)").run();
+      
+      console.log('[Database] Created documents and PRD tables successfully');
+    }
+
+    // Migration: Rename product_requirements to product_requirement_prompts if needed
+    const oldPrdTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='product_requirements'").all();
+    const newPrpTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='product_requirement_prompts'").all();
+    
+    if (oldPrdTable.length > 0 && newPrpTable.length === 0) {
+      console.log('[Database] Renaming product_requirements to product_requirement_prompts...');
+      
+      // Rename the main table
+      this.db.prepare("ALTER TABLE product_requirements RENAME TO product_requirement_prompts").run();
+      
+      // Check if session_prd exists and rename it
+      const sessionPrdTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='session_prd'").all();
+      if (sessionPrdTable.length > 0) {
+        // Create new session_prp table
+        this.db.prepare(`
+          CREATE TABLE session_prp (
+            session_id TEXT NOT NULL,
+            prp_id INTEGER NOT NULL,
+            prp_version INTEGER NOT NULL,
+            included_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (session_id),
+            FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+            FOREIGN KEY (prp_id) REFERENCES product_requirement_prompts(id) ON DELETE CASCADE
+          )
+        `).run();
+        
+        // Copy data from old table
+        this.db.prepare(`
+          INSERT INTO session_prp (session_id, prp_id, prp_version, included_at)
+          SELECT session_id, prd_id, prd_version, included_at
+          FROM session_prd
+        `).run();
+        
+        // Drop old table
+        this.db.prepare("DROP TABLE session_prd").run();
+      }
+      
+      // Update indexes to reflect new table names
+      this.db.prepare("DROP INDEX IF EXISTS idx_prd_project").run();
+      this.db.prepare("DROP INDEX IF EXISTS idx_prd_active").run();
+      this.db.prepare("CREATE INDEX IF NOT EXISTS idx_prp_project ON product_requirement_prompts(project_id)").run();
+      this.db.prepare("CREATE INDEX IF NOT EXISTS idx_prp_active ON product_requirement_prompts(project_id, is_active)").run();
+      
+      console.log('[Database] Successfully renamed PRD tables to PRP');
+    }
+
+    // Migration: Make PRPs project-independent
+    // Check if product_requirement_prompts table exists and has project_id
+    const prpTableInfo = this.db.prepare("PRAGMA table_info(product_requirement_prompts)").all();
+    const hasProjectId = prpTableInfo.some((col: any) => col.name === 'project_id');
+    
+    // Create table if it doesn't exist at all
+    if (prpTableInfo.length === 0) {
+      console.log('[Database] Creating product_requirement_prompts table...');
+      
+      this.db.prepare(`
+        CREATE TABLE product_requirement_prompts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          version INTEGER DEFAULT 1,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+      
+      // Create index
+      this.db.prepare("CREATE INDEX idx_prp_active ON product_requirement_prompts(is_active)").run();
+      
+      // Create FTS table
+      this.db.prepare(`
+        CREATE VIRTUAL TABLE product_requirement_prompts_fts USING fts5(
+          title, 
+          content,
+          content=product_requirement_prompts,
+          content_rowid=id
+        )
+      `).run();
+      
+      // Create triggers to keep FTS index in sync
+      this.db.prepare(`
+        CREATE TRIGGER prp_ai AFTER INSERT ON product_requirement_prompts BEGIN
+          INSERT INTO product_requirement_prompts_fts(rowid, title, content)
+          VALUES (new.id, new.title, new.content);
+        END
+      `).run();
+      
+      this.db.prepare(`
+        CREATE TRIGGER prp_au AFTER UPDATE ON product_requirement_prompts BEGIN
+          INSERT INTO product_requirement_prompts_fts(product_requirement_prompts_fts, rowid, title, content)
+          VALUES ('delete', old.id, old.title, old.content);
+          INSERT INTO product_requirement_prompts_fts(rowid, title, content)
+          VALUES (new.id, new.title, new.content);
+        END
+      `).run();
+      
+      this.db.prepare(`
+        CREATE TRIGGER prp_ad AFTER DELETE ON product_requirement_prompts BEGIN
+          INSERT INTO product_requirement_prompts_fts(product_requirement_prompts_fts, rowid, title, content)
+          VALUES ('delete', old.id, old.title, old.content);
+        END
+      `).run();
+      
+      // Also create session_prp table if it doesn't exist
+      const sessionPrpTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='session_prp'").all();
+      if (sessionPrpTable.length === 0) {
+        this.db.prepare(`
+          CREATE TABLE session_prp (
+            session_id TEXT NOT NULL,
+            prp_id INTEGER NOT NULL,
+            prp_version INTEGER NOT NULL,
+            included_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (session_id),
+            FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+            FOREIGN KEY (prp_id) REFERENCES product_requirement_prompts(id) ON DELETE CASCADE
+          )
+        `).run();
+      }
+      
+      console.log('[Database] Successfully created product_requirement_prompts table');
+    } else if (prpTableInfo.length > 0 && hasProjectId) {
+      console.log('[Database] Migrating PRPs to be project-independent...');
+      
+      // Create a new table without project_id
+      this.db.prepare(`
+        CREATE TABLE product_requirement_prompts_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          version INTEGER DEFAULT 1,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+      
+      // Copy data from old table (without project_id)
+      this.db.prepare(`
+        INSERT INTO product_requirement_prompts_new (id, title, content, version, is_active, created_at, updated_at)
+        SELECT id, title, content, version, is_active, created_at, updated_at
+        FROM product_requirement_prompts
+      `).run();
+      
+      // Drop old indexes
+      this.db.prepare("DROP INDEX IF EXISTS idx_prp_project").run();
+      this.db.prepare("DROP INDEX IF EXISTS idx_prp_active").run();
+      
+      // Drop old table
+      this.db.prepare("DROP TABLE product_requirement_prompts").run();
+      
+      // Rename new table to original name
+      this.db.prepare("ALTER TABLE product_requirement_prompts_new RENAME TO product_requirement_prompts").run();
+      
+      // Create new index without project_id
+      this.db.prepare("CREATE INDEX idx_prp_active ON product_requirement_prompts(is_active)").run();
+      
+      // Recreate the FTS table without project_id
+      this.db.prepare("DROP TABLE IF EXISTS product_requirement_prompts_fts").run();
+      this.db.prepare(`
+        CREATE VIRTUAL TABLE product_requirement_prompts_fts USING fts5(
+          title, 
+          content,
+          content=product_requirement_prompts,
+          content_rowid=id
+        )
+      `).run();
+      
+      // Populate FTS
+      this.db.prepare(`
+        INSERT INTO product_requirement_prompts_fts(rowid, title, content)
+        SELECT id, title, content FROM product_requirement_prompts
+      `).run();
+      
+      console.log('[Database] Successfully migrated PRPs to be project-independent');
+    }
+
+    // Migration to remove is_active column from PRPs
+    const prpColumns = this.db.prepare("PRAGMA table_info(product_requirement_prompts)").all();
+    const hasIsActiveColumn = prpColumns.some((col: any) => col.name === 'is_active');
+    
+    if (hasIsActiveColumn) {
+      console.log('[Database] Removing is_active column from product_requirement_prompts...');
+      
+      // Create new table without is_active
+      this.db.prepare(`
+        CREATE TABLE product_requirement_prompts_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          version INTEGER DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+      
+      // Copy data from old table (without is_active)
+      this.db.prepare(`
+        INSERT INTO product_requirement_prompts_new (id, title, content, version, created_at, updated_at)
+        SELECT id, title, content, version, created_at, updated_at
+        FROM product_requirement_prompts
+      `).run();
+      
+      // Drop old index
+      this.db.prepare("DROP INDEX IF EXISTS idx_prp_active").run();
+      
+      // Drop old table
+      this.db.prepare("DROP TABLE product_requirement_prompts").run();
+      
+      // Rename new table to original name
+      this.db.prepare("ALTER TABLE product_requirement_prompts_new RENAME TO product_requirement_prompts").run();
+      
+      // Recreate the FTS table
+      this.db.prepare("DROP TABLE IF EXISTS product_requirement_prompts_fts").run();
+      this.db.prepare(`
+        CREATE VIRTUAL TABLE product_requirement_prompts_fts USING fts5(
+          title, 
+          content,
+          content=product_requirement_prompts,
+          content_rowid=id
+        )
+      `).run();
+      
+      // Recreate triggers for FTS
+      this.db.prepare(`
+        CREATE TRIGGER prp_fts_insert AFTER INSERT ON product_requirement_prompts
+        BEGIN
+          INSERT INTO product_requirement_prompts_fts (rowid, title, content)
+          VALUES (new.id, new.title, new.content);
+        END
+      `).run();
+      
+      this.db.prepare(`
+        CREATE TRIGGER prp_fts_update AFTER UPDATE ON product_requirement_prompts
+        BEGIN
+          UPDATE product_requirement_prompts_fts 
+          SET title = new.title, content = new.content
+          WHERE rowid = new.id;
+        END
+      `).run();
+      
+      this.db.prepare(`
+        CREATE TRIGGER prp_fts_delete AFTER DELETE ON product_requirement_prompts
+        BEGIN
+          DELETE FROM product_requirement_prompts_fts WHERE rowid = old.id;
+        END
+      `).run();
+      
+      // Re-index all existing PRPs
+      this.db.prepare(`
+        INSERT INTO product_requirement_prompts_fts (rowid, title, content)
+        SELECT id, title, content FROM product_requirement_prompts
+      `).run();
+      
+      console.log('[Database] Successfully removed is_active column from product_requirement_prompts');
+    }
+
+    // Migration to remove legacy PRD tables
+    const tableList = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{name: string}>;
+    const hasProductRequirementsTable = tableList.some((table) => table.name === 'product_requirements');
+    const hasSessionPrdTable = tableList.some((table) => table.name === 'session_prd');
+    
+    if (hasProductRequirementsTable) {
+      console.log('[Database] Removing legacy product_requirements table...');
+      
+      // Drop triggers first
+      this.db.prepare("DROP TRIGGER IF EXISTS prd_fts_insert").run();
+      this.db.prepare("DROP TRIGGER IF EXISTS prd_fts_update").run();
+      this.db.prepare("DROP TRIGGER IF EXISTS prd_fts_delete").run();
+      
+      // Drop FTS table if it exists
+      this.db.prepare("DROP TABLE IF EXISTS product_requirements_fts").run();
+      
+      // Drop the main table
+      this.db.prepare("DROP TABLE IF EXISTS product_requirements").run();
+      
+      console.log('[Database] Successfully removed product_requirements table');
+    }
+    
+    if (hasSessionPrdTable) {
+      console.log('[Database] Removing legacy session_prd table...');
+      
+      // Drop the session_prd table
+      this.db.prepare("DROP TABLE IF EXISTS session_prd").run();
+      
+      console.log('[Database] Successfully removed session_prd table');
+    }
   }
 
   // Project operations
@@ -648,7 +1103,7 @@ export class DatabaseService {
     const result = this.db.prepare(`
       INSERT INTO projects (name, path, system_prompt, run_script, main_branch, build_script, default_permission_mode, open_ide_command, display_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(name, path, systemPrompt || null, runScript || null, null, buildScript || null, defaultPermissionMode || 'ignore', openIdeCommand || null, displayOrder);
+    `).run(name, path, systemPrompt || null, runScript || null, mainBranch || null, buildScript || null, defaultPermissionMode || 'ignore', openIdeCommand || null, displayOrder);
     
     const project = this.getProject(result.lastInsertRowid as number);
     if (!project) {
@@ -706,10 +1161,7 @@ export class DatabaseService {
       fields.push('build_script = ?');
       values.push(updates.build_script);
     }
-    if (updates.main_branch !== undefined) {
-      fields.push('main_branch = ?');
-      values.push(updates.main_branch);
-    }
+    // main_branch is now automatically detected from the project directory
     if (updates.default_permission_mode !== undefined) {
       fields.push('default_permission_mode = ?');
       values.push(updates.default_permission_mode);
@@ -1432,16 +1884,16 @@ export class DatabaseService {
   }
 
   // App opens operations
-  recordAppOpen(welcomeHidden: boolean, discordShown: boolean = false): void {
+  recordAppOpen(welcomeHidden: boolean): void {
     this.db.prepare(`
-      INSERT INTO app_opens (welcome_hidden, discord_shown)
-      VALUES (?, ?)
-    `).run(welcomeHidden ? 1 : 0, discordShown ? 1 : 0);
+      INSERT INTO app_opens (welcome_hidden)
+      VALUES (?)
+    `).run(welcomeHidden ? 1 : 0);
   }
 
-  getLastAppOpen(): { opened_at: string; welcome_hidden: boolean; discord_shown: boolean } | null {
+  getLastAppOpen(): { opened_at: string; welcome_hidden: boolean } | null {
     const result = this.db.prepare(`
-      SELECT opened_at, welcome_hidden, discord_shown
+      SELECT opened_at, welcome_hidden
       FROM app_opens
       ORDER BY opened_at DESC
       LIMIT 1
@@ -1451,18 +1903,10 @@ export class DatabaseService {
     
     return {
       opened_at: result.opened_at,
-      welcome_hidden: Boolean(result.welcome_hidden),
-      discord_shown: Boolean(result.discord_shown)
+      welcome_hidden: Boolean(result.welcome_hidden)
     };
   }
 
-  updateLastAppOpenDiscordShown(): void {
-    this.db.prepare(`
-      UPDATE app_opens
-      SET discord_shown = 1
-      WHERE id = (SELECT id FROM app_opens ORDER BY opened_at DESC LIMIT 1)
-    `).run();
-  }
 
   // User preferences operations
   getUserPreference(key: string): string | null {

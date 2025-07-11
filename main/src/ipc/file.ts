@@ -120,8 +120,14 @@ export function registerFileHandlers(ipcMain: IpcMain, services: AppServices): v
         throw new Error(`Session not found: ${request.sessionId}`);
       }
 
-      // Note: mainBranch detection removed as it wasn't being used in this function
-      // If needed in the future, use worktreeManager.detectMainBranch(session.worktreePath)
+      // Get project information if available
+      let mainBranch = 'main'; // default
+      if (session.projectId) {
+        const project = databaseService.getProject(session.projectId);
+        if (project && project.main_branch) {
+          mainBranch = project.main_branch;
+        }
+      }
 
       if (!session.worktreePath) {
         throw new Error(`Session worktree path is undefined for session: ${request.sessionId}`);
@@ -235,9 +241,9 @@ export function registerFileHandlers(ipcMain: IpcMain, services: AppServices): v
         // Create the commit with Crystal signature
         const commitMessage = `${request.message}
 
-🤖 Generated with [Crystal](https://stravu.com/)
+🤖 Generated with Crystal
 
-Co-Authored-By: Crystal <noreply@stravu.com>`;
+Co-Authored-By: Crystal <crystal@localhost>`;
 
         // Use a here document to handle multi-line commit messages
         const command = `git commit -m "$(cat <<'EOF'
@@ -257,9 +263,9 @@ EOF
             const command = `git commit -m "$(cat <<'EOF'
 ${request.message}
 
-🤖 Generated with [Crystal](https://stravu.com/)
+🤖 Generated with Crystal
 
-Co-Authored-By: Crystal <noreply@stravu.com>
+Co-Authored-By: Crystal <crystal@localhost>
 EOF
 )"`;
             await execAsync(command, { cwd: session.worktreePath });

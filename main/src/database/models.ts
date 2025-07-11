@@ -5,7 +5,7 @@ export interface Project {
   system_prompt?: string;
   run_script?: string;
   build_script?: string;
-  main_branch?: string; // Deprecated - kept for backward compatibility but ignored by the application
+  main_branch?: string;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -137,4 +137,76 @@ export interface CreateExecutionDiffData {
   stats_files_changed?: number;
   before_commit_hash?: string;
   after_commit_hash?: string;
+}
+
+// Document and PRP interfaces
+export interface ProductRequirementPrompt {
+  id: number;
+  project_id: number;
+  title: string;
+  content: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Document {
+  id: number;
+  project_id: number;
+  title: string;
+  content: string;
+  excerpt?: string;
+  category: string;
+  tags?: string[]; // JSON parsed array
+  word_count?: number;
+  file_path?: string;
+  url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionDocument {
+  session_id: string;
+  document_id: number;
+  included_at: string;
+}
+
+export interface SessionPRP {
+  session_id: string;
+  prp_id: number;
+  prp_version: number;
+  included_at: string;
+}
+
+export interface FileIndex {
+  id: number;
+  project_id: number;
+  file_path: string;
+  file_name: string;
+  file_type?: string;
+  size?: number;
+  modified_at?: string;
+  content_preview?: string;
+  indexed_at: string;
+}
+
+export interface SessionMilestone {
+  id: number;
+  session_id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  completed_at?: string;
+  created_at: string;
+}
+
+export interface SessionMetrics {
+  session_id: string;
+  total_time_seconds: number;
+  tokens_used: number;
+  commits_made: number;
+  files_changed: number;
+  lines_added: number;
+  lines_deleted: number;
+  last_updated: string;
 }

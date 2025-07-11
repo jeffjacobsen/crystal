@@ -28,7 +28,6 @@ function getPathSeparator(): string {
 export function getShellPath(): string {
   // In packaged apps, always refresh PATH on first call to avoid cached restricted PATH
   if (cachedPath && !isFirstCall) {
-    console.log('[ShellPath] Using cached PATH');
     return cachedPath;
   }
   isFirstCall = false;
@@ -75,7 +74,7 @@ export function getShellPath(): string {
       }
     } else {
       // Unix/macOS logic - use ShellDetector to get the actual shell
-      const shellInfo = ShellDetector.getDefaultShell();
+      const shellInfo = ShellDetector.getDefaultShell(true);
       const shell = shellInfo.path;
       const isLinux = process.platform === 'linux';
       
@@ -295,7 +294,7 @@ export function getShellPath(): string {
         ];
         
         console.log(`[ShellPath] Checking shell config files: ${shellConfigPaths.join(', ')}`);
-        const extractedPaths: string[] = [];
+        let extractedPaths: string[] = [];
         
         for (const configPath of shellConfigPaths) {
           if (fs.existsSync(configPath)) {
