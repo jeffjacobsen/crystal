@@ -1,4 +1,4 @@
-# Crystal - Multi-Session Claude Code Manager (Enhanced Fork)
+# Crystal Fork - with PRP Generation
 
 > **Note**: This is an enhanced fork of Crystal with Product Requirement Prompts (PRPs) for structured AI-assisted development. Test users should follow the instructions below to run from source.
 
@@ -13,7 +13,7 @@
 
 ```bash
 # Clone the enhanced fork
-git clone https://github.com/[your-username]/crystal.git
+git clone https://github.com/jeffjacobsen/crystal.git
 cd crystal
 
 # Checkout the PRP-enhanced branch
