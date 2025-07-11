@@ -37,6 +37,8 @@ For detailed documentation about our enhancements, see the `/docs` directory:
 - `docs/PROGRESS_SUMMARY.md` - Detailed list of all changes and enhancements
 - `docs/PRP-TEMPLATE-SYSTEM.md` - Complete PRP template system documentation
 
+**Notes: If you encounter Python-related errors during setup check https://github.com/stravu/crystal/commit/f8fc298ca00b27b954f163e65544375806532d87
+
 ---
 
 ## Original Crystal Overview
