@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "dev": "tsc -w",
-    "build": "rimraf dist && tsc && npm run copy:assets && npm run bundle:mcp",
+    "build": "rimraf dist && tsc --project tsconfig.build.json && npm run copy:assets && npm run copy:scripts && npm run bundle:mcp",
+    "copy:scripts": "mkdirp dist/scripts && cp src/scripts/*.py dist/scripts/ || true",
     "bundle:mcp": "node build-mcp-bridge.js",
     "copy:assets": "mkdirp dist/database/migrations && cp src/database/*.sql dist/database/ && cp src/database/migrations/*.sql dist/database/migrations/",
     "lint": "eslint src --ext .ts",
