@@ -4,7 +4,7 @@ import { DraggableProjectTreeView } from './DraggableProjectTreeView';
 import { Info } from 'lucide-react';
 import crystalLogo from '../assets/crystal-logo.svg';
 
-type ViewMode = 'sessions' | 'prompts';
+type ViewMode = 'sessions' | 'prompts' | 'documents';
 
 interface SidebarProps {
   viewMode: ViewMode;
@@ -95,6 +95,16 @@ export function Sidebar({ viewMode, onViewModeChange, onHelpClick, onAboutClick,
               }`}
             >
               PRPs
+            </button>
+            <button
+              onClick={() => onViewModeChange('documents')}
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
+                viewMode === 'documents'
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              Documents
             </button>
             <button
               onClick={() => onViewModeChange('sessions')}

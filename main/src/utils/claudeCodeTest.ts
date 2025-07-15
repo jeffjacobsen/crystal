@@ -106,25 +106,25 @@ export async function findClaudeExecutable(): Promise<string | null> {
 }
 
 export async function testClaudeCodeAvailability(customClaudePath?: string): Promise<{ available: boolean; error?: string; version?: string; path?: string }> {
-  console.log('[ClaudeTest] Testing Claude Code availability...');
-  console.log(`[ClaudeTest] Platform: ${os.platform()}`);
+  // console.log('[ClaudeTest] Testing Claude Code availability...');
+  // console.log(`[ClaudeTest] Platform: ${os.platform()}`);
   
   try {
     // Get the user's shell PATH
     const shellPath = getShellPath();
-    console.log(`[ClaudeTest] Using shell PATH with ${shellPath.split(os.platform() === 'win32' ? ';' : ':').length} entries`);
+    // console.log(`[ClaudeTest] Using shell PATH with ${shellPath.split(os.platform() === 'win32' ? ';' : ':').length} entries`);
     
     // Use custom path if provided, otherwise try to find claude in the shell PATH
     let claudePath: string | null = null;
     
     if (customClaudePath) {
-      console.log(`[ClaudeTest] Using custom Claude path: ${customClaudePath}`);
+      // console.log(`[ClaudeTest] Using custom Claude path: ${customClaudePath}`);
       // Verify the custom path exists and is executable
       try {
         await fs.promises.access(customClaudePath, fs.constants.X_OK);
         claudePath = customClaudePath;
       } catch (error) {
-        console.error(`[ClaudeTest] Custom Claude path is not accessible or not executable: ${customClaudePath}`);
+        // console.error(`[ClaudeTest] Custom Claude path is not accessible or not executable: ${customClaudePath}`);
         return { 
           available: false, 
           error: `Custom Claude path is not valid or not executable: ${customClaudePath}` 
@@ -135,15 +135,15 @@ export async function testClaudeCodeAvailability(customClaudePath?: string): Pro
     }
     
     if (!claudePath) {
-      console.error('[ClaudeTest] Claude executable not found in PATH');
-      console.error(`[ClaudeTest] Searched PATH: ${shellPath.substring(0, 500)}...`);
+      // console.error('[ClaudeTest] Claude executable not found in PATH');
+      // console.error(`[ClaudeTest] Searched PATH: ${shellPath.substring(0, 500)}...`);
       
       // Also check if claude might be in common locations not in PATH
-      console.log('[ClaudeTest] Checking common installation locations...');
+      // console.log('[ClaudeTest] Checking common installation locations...');
       const fallbackPath = await findClaudeExecutable();
       if (fallbackPath) {
-        console.log(`[ClaudeTest] Found Claude at ${fallbackPath} (not in PATH)`);
-        console.error('[ClaudeTest] Claude is installed but not in PATH. Add it to your PATH environment variable.');
+        // console.log(`[ClaudeTest] Found Claude at ${fallbackPath} (not in PATH)`);
+        // console.error('[ClaudeTest] Claude is installed but not in PATH. Add it to your PATH environment variable.');
       }
       
       return { 
@@ -152,26 +152,26 @@ export async function testClaudeCodeAvailability(customClaudePath?: string): Pro
       };
     }
     
-    console.log(`[ClaudeTest] Found Claude at: ${claudePath}`);
+    // console.log(`[ClaudeTest] Found Claude at: ${claudePath}`);
     
     // Try to get version using the shell PATH
     try {
       const env = { ...process.env, PATH: shellPath };
       const timeout = os.platform() === 'linux' ? 2000 : 5000;  // Shorter timeout for Linux
-      console.log(`[ClaudeTest] Running '${claudePath} --version' with timeout ${timeout}ms...`);
+      // console.log(`[ClaudeTest] Running '${claudePath} --version' with timeout ${timeout}ms...`);
       const { stdout } = await execAsync(`${claudePath} --version`, { timeout, env });
       const version = stdout.trim();
-      console.log(`[ClaudeTest] Claude version: ${version}`);
+      // console.log(`[ClaudeTest] Claude version: ${version}`);
       return { available: true, version, path: claudePath };
     } catch (versionError) {
       // Command exists but version failed - might still work
-      console.warn(`[ClaudeTest] Version check failed: ${versionError instanceof Error ? versionError.message : versionError}`);
-      console.warn('[ClaudeTest] Claude found but version check failed - it might still work');
+      // console.warn(`[ClaudeTest] Version check failed: ${versionError instanceof Error ? versionError.message : versionError}`);
+      // console.warn('[ClaudeTest] Claude found but version check failed - it might still work');
       return { available: true, error: 'Could not get version info', path: claudePath };
     }
   } catch (error) {
-    console.error(`[ClaudeTest] ERROR: Unexpected error during availability check: ${error}`);
-    console.error(`[ClaudeTest] Error details: ${error instanceof Error ? error.stack : 'No stack trace'}`);
+    // console.error(`[ClaudeTest] ERROR: Unexpected error during availability check: ${error}`);
+    // console.error(`[ClaudeTest] Error details: ${error instanceof Error ? error.stack : 'No stack trace'}`);
     return { 
       available: false, 
       error: error instanceof Error ? error.message : 'Unknown error checking Claude Code availability' 
@@ -180,7 +180,7 @@ export async function testClaudeCodeAvailability(customClaudePath?: string): Pro
 }
 
 export async function testClaudeCodeInDirectory(directory: string, customClaudePath?: string): Promise<{ success: boolean; error?: string; output?: string }> {
-  console.log(`[ClaudeTest] Testing Claude in directory: ${directory}`);
+  // console.log(`[ClaudeTest] Testing Claude in directory: ${directory}`);
   
   try {
     // Use the same enhanced shell PATH that build scripts use
@@ -191,18 +191,18 @@ export async function testClaudeCodeInDirectory(directory: string, customClaudeP
     // Use custom path if provided, otherwise use 'claude' which will be found in PATH
     const claudeCommand = customClaudePath || 'claude';
     
-    console.log(`[ClaudeTest] Running '${claudeCommand} --help' in ${directory} with timeout ${timeout}ms...`);
+    // console.log(`[ClaudeTest] Running '${claudeCommand} --help' in ${directory} with timeout ${timeout}ms...`);
     const { stdout, stderr } = await execAsync(`"${claudeCommand}" --help`, { 
       cwd: directory,
       timeout,
       env
     });
-    console.log('[ClaudeTest] Directory test successful');
+    // console.log('[ClaudeTest] Directory test successful');
     return { success: true, output: stdout + stderr };
   } catch (error) {
-    console.error(`[ClaudeTest] Directory test failed: ${error instanceof Error ? error.message : error}`);
+    // console.error(`[ClaudeTest] Directory test failed: ${error instanceof Error ? error.message : error}`);
     if (error instanceof Error && 'code' in error) {
-      console.error(`[ClaudeTest] Error code: ${(error as any).code}`);
+      // console.error(`[ClaudeTest] Error code: ${(error as any).code}`);
     }
     return { 
       success: false, 

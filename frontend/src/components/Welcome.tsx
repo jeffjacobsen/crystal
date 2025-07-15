@@ -24,30 +24,42 @@ export default function Welcome({ showManually, onClose }: WelcomeProps) {
 
   // Auto-test Claude on component mount
   useEffect(() => {
-    if (!hasAutoTested) {
-      const loadClaudeConfig = async () => {
-        try {
-          const response = await API.config.get();
-          if (response.success && response.data) {
-            setClaudeExecutablePath(response.data.claudeExecutablePath || '');
-            // Auto-test Claude availability
-            const testResult = await testClaude(response.data.claudeExecutablePath);
-            // Only show dialog if Claude is not available
-            if (!testResult?.available) {
-              setIsVisible(true);
-            }
+    let mounted = true;
+    
+    const loadClaudeConfig = async () => {
+      if (!mounted || hasAutoTested) return;
+      
+      console.log('[Welcome] Loading Claude config and auto-testing...');
+      try {
+        const response = await API.config.get();
+        if (mounted && response.success && response.data) {
+          setClaudeExecutablePath(response.data.claudeExecutablePath || '');
+          // Auto-test Claude availability
+          const testResult = await testClaude(response.data.claudeExecutablePath);
+          // Only show dialog if Claude is not available
+          if (mounted && !testResult?.available) {
+            setIsVisible(true);
+          }
+          if (mounted) {
             setHasAutoTested(true);
           }
-        } catch (error) {
-          console.error('Failed to load Claude config:', error);
-          // Show dialog on error
+        }
+      } catch (error) {
+        console.error('Failed to load Claude config:', error);
+        // Show dialog on error
+        if (mounted) {
           setIsVisible(true);
           setHasAutoTested(true);
         }
-      };
-      loadClaudeConfig();
-    }
-  }, [hasAutoTested]);
+      }
+    };
+    
+    loadClaudeConfig();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty dependency array - only run once on mount
 
   // Show dialog when manually triggered
   useEffect(() => {

@@ -1,11 +1,11 @@
 import React from 'react';
 import { GitErrorDetails } from '../../types/session';
+import { sanitizeGitOutput } from '../../utils/sanitizer';
 
 interface GitErrorDialogProps {
   isOpen: boolean;
   onClose: () => void;
   errorDetails: GitErrorDetails | null;
-  formatGitOutput: (output: string) => string;
   getGitErrorTips: (errorDetails: GitErrorDetails) => string[];
   onAbortAndUseClaude: () => void;
 }
@@ -14,7 +14,6 @@ export const GitErrorDialog: React.FC<GitErrorDialogProps> = ({
   isOpen,
   onClose,
   errorDetails,
-  formatGitOutput,
   getGitErrorTips,
   onAbortAndUseClaude,
 }) => {
@@ -54,7 +53,7 @@ export const GitErrorDialog: React.FC<GitErrorDialogProps> = ({
                 Git Output
               </h3>
               <div className="bg-gray-900 text-gray-100 rounded-md p-4 max-h-96 overflow-y-auto shadow-inner">
-                <pre className="text-sm whitespace-pre-wrap font-mono" dangerouslySetInnerHTML={{ __html: formatGitOutput(errorDetails.output || 'No output available') }} />
+                <pre className="text-sm whitespace-pre-wrap font-mono">{sanitizeGitOutput(errorDetails.output || 'No output available')}</pre>
               </div>
             </div>
 

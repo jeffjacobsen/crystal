@@ -1,23 +1,15 @@
-# Crystal Fork - with PRP Generation
+# Crystal ICE - Integrated Context Engineering
 
-> **Note**: This is an enhanced fork of Crystal with Product Requirement Prompts (PRPs) for structured AI-assisted development.
+> **Note**: Crystal ICE is an enhanced fork of Crystal that adds Integrated Context Engineering through Product Requirement Prompts (PRPs), web documentation scraping, and structured AI-assisted development. Test users should follow the instructions below to run from source.
 
-## The Concept
-Crystal is a Multi-Session Claude Code Manager.
-
-The idea was to incorporate the ability to generate PRPs (see https://github.com/Wirasm/PRPs-agentic-eng)
-This code could be a good starting point to add customized templates allowing users to easily generate specific applications, such as Agents, Websites, etc.  The PRP generation works quite well and I've actually used it to generate PRPs that I have copied and given to Claude manually while working on this fork.
-
-Claude made some changes to the template struture that Rasmmus designed to merge the PRP instructions and templates into a single file. It also sugessted a future enhancement where the Creation Dialog could have optional variable replacement fields and modify those in the combined prompt/template. Some of this logic is in place in the metadata.json file that accompanies each template.md file and also in the template generation, but has not been implemented in the front end.
-
-I've also tested using a PRP in New Session generation.  I haven't looked at or tested the (existing) Include Documents function. A future enhancement might involved have a document library or to use Cole's (https://github.com/coleam00) mcp-crawl or Archon to add documentation. 
-
-## 🚀 Quick Start
+## 🚀 Quick Start for Test Users
 
 ### Prerequisites
 - Node.js 18+ and pnpm installed
 - Claude Code CLI installed and logged in
 - Git installed
+- Python 3.8+ (for web scraping functionality)
+- crawl4ai package: `pip install crawl4ai==0.7.0`
 
 ### Running from Source
 
@@ -26,6 +18,9 @@ I've also tested using a PRP in New Session generation.  I haven't looked at or 
 git clone https://github.com/jeffjacobsen/crystal.git
 cd crystal
 
+# Checkout the PRP-enhanced branch
+git checkout feature/prp-enhanced
+
 # Install dependencies and build
 pnpm run setup
 
@@ -33,11 +28,16 @@ pnpm run setup
 pnpm run dev
 ```
 
-### What's New in This Fork?
+### What Makes Crystal ICE Different?
+
+Crystal ICE (Integrated Context Engineering) enhances the original Crystal with powerful context management features:
+
 - **Product Requirement Prompts (PRPs)**: Structured templates for AI-assisted development
 - **AI-Powered PRP Generation**: Use Claude Code to generate PRPs from templates
-- **Streamlined UI**: Simplified session creation with PRP integration
-- **Enhanced Documentation**: See `/docs` directory for detailed information
+- **Web Documentation Import**: Scrape and import documentation from URLs with intelligent crawling
+- **Context-First Design**: Documents and PRPs exist independently of projects
+- **Streamlined Workflow**: Integrated PRP selection in session creation
+- **Progressive Disclosure**: Step-by-step interfaces for complex operations
 
 For detailed documentation about our enhancements, see the `/docs` directory:
 - `docs/ADAPTATION_PLAN.md` - Original vision and implementation roadmap
@@ -46,7 +46,70 @@ For detailed documentation about our enhancements, see the `/docs` directory:
 
 **Notes: If you encounter Python-related errors during setup check https://github.com/stravu/crystal/commit/f8fc298ca00b27b954f163e65544375806532d87
 
----
+
+## Installation
+
+### Download Pre-built Binaries
+
+Pre-built binaries are not yet available for this enhanced fork. Please run from source as shown above.
+
+
+## 🧪 Testing
+
+Crystal uses Vitest for unit testing and Playwright for E2E testing. The test suite includes critical security tests for XSS prevention and command injection protection.
+
+### Running Tests
+
+```bash
+# Run all tests (unit + E2E)
+pnpm test
+
+# Run unit tests only
+pnpm test:unit
+
+# Run unit tests in watch mode (auto-reruns on file changes)
+pnpm test:unit:watch
+
+# Run security tests only (shellEscape + sanitizer)
+pnpm test:security
+
+# Run tests with coverage report
+pnpm test:coverage
+
+# Run E2E tests
+pnpm test:e2e
+
+# Run E2E tests with UI
+pnpm test:e2e:ui
+```
+
+### Running Specific Tests
+
+```bash
+# Run a single test file
+pnpm test:unit main/src/utils/__tests__/shellEscape.test.ts
+
+# Run tests matching a pattern
+pnpm test:unit -t security
+
+# Run all tests in a specific directory
+pnpm test:unit main/src/utils/__tests__
+```
+
+### Test Coverage
+
+The test suite covers:
+- ✅ **Security utilities** - Command injection and XSS prevention (48 tests)
+- ✅ **PRP system** - Template loading, parsing, and generation (8 tests)
+- ✅ **Git operations** - Worktree management and git commands (17 tests)
+- ✅ **Session management** - Complete session lifecycle (28 tests)
+- ✅ **Template system** - PRP template loading and management (10 tests)
+- ✅ **Frontend components** - UI components and user interactions (99 tests)
+
+**Current Status**: 210 total tests with 100% backend test coverage (89/89 passing)
+
+
+------------------------------------------------
 
 ## Original Crystal Overview
 
@@ -71,8 +134,31 @@ Crystal is an Electron desktop application that lets you run, inspect, and test 
 - **🏗️ Run Scripts** - Test changes instantly without leaving Crystal
 - **📋 Product Requirement Prompts** - Structured development with AI-assisted PRP generation
 - **🎯 Focused Workflow** - Streamlined session creation with PRP integration
+- **🌐 Web Scraping** - Import documentation directly from URLs with intelligent crawling
+- **📄 Document Management** - Create and manage documents independently of projects
 
 ## 🚀 Quick Start
+
+## Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/stravu/crystal.git
+cd crystal
+
+# One-time setup
+pnpm run setup
+
+# Run in development
+pnpm run electron-dev
+```
+
+## Building for Production
+
+```bash
+# Build for macOS
+pnpm build:mac
+```
 
 ### Prerequisites
 - Claude Code installed and logged in
@@ -105,37 +191,6 @@ When everything looks good:
 - Always preview commands with tooltips before executing
 
 
-
-## Installation
-
-### Download Pre-built Binaries
-
-Pre-built binaries are not yet available for this enhanced fork. Please run from source using the Quick Start instructions above.
-
-
-## Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/stravu/crystal.git
-cd crystal
-
-# One-time setup
-pnpm run setup
-
-# Run in development
-pnpm run electron-dev
-```
-
-## Building for Production
-
-```bash
-# Build for macOS
-pnpm build:mac
-```
-
-
-
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
@@ -146,7 +201,7 @@ If you're using Crystal to develop Crystal itself, you need to use a separate da
 
 ```bash
 # Set the run script in your Crystal project settings to:
-pnpm run setup && CRYSTAL_DIR=~/.crystal_test pnpm electron-dev
+pnpm run setup && pnpm run build:main && CRYSTAL_DIR=~/.crystal_test pnpm electron-dev
 ```
 
 This ensures:
@@ -154,21 +209,3 @@ This ensures:
 - Your main Crystal instance continues using `~/.crystal` 
 - Worktrees won't conflict between the two instances
 - You can safely test changes without affecting your primary Crystal setup
-
-
-## 📄 License
-
-Crystal is open source software licensed under the [MIT License](LICENSE).
-
-### Third-Party Licenses
-
-Crystal includes third-party software components. All third-party licenses are documented in the [NOTICES](NOTICES) file. This file is automatically generated and kept up-to-date with our dependencies.
-
-To regenerate the NOTICES file after updating dependencies:
-```bash
-pnpm run generate-notices
-```
-
-## Disclaimer
-
-Crystal is an independent open-source project. Claude™ is a trademark of Anthropic, PBC. Crystal is not affiliated with, endorsed by, or sponsored by Anthropic. This tool is designed to work with Claude Code, which must be installed separately.

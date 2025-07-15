@@ -358,6 +358,18 @@ async function initializeServices() {
   const templateService = new TemplateService(logger);
   const prpGenerationService = new PRPGenerationService(templateService, logger, configManager);
   
+  // Import Web Scraping Service
+  const { WebScrapingService } = await import('./services/webScrapingService');
+  let webScrapingService: InstanceType<typeof WebScrapingService> | undefined;
+  try {
+    webScrapingService = new WebScrapingService(logger);
+    await webScrapingService.initialize();
+    logger.info('Web scraping service initialized successfully');
+  } catch (error) {
+    logger.warn('Web scraping service initialization failed:', error instanceof Error ? error : new Error(String(error)));
+    // Continue without web scraping - it's an optional feature
+  }
+  
   // Initialize templates
   await templateService.initialize(configManager.getConfig().customTemplatePaths);
 
@@ -388,6 +400,7 @@ async function initializeServices() {
     prpService,
     templateService,
     prpGenerationService,
+    webScrapingService,
     taskQueue,
     getMainWindow: () => mainWindow,
   };

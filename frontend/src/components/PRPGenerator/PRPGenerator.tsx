@@ -457,9 +457,11 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
           Generating PRP with Claude Code
         </h3>
-        <p className="text-base font-medium text-gray-900 dark:text-white mb-4">
-          {generationProgress.message}
-        </p>
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+            {generationProgress.message}
+          </p>
+        </div>
         
         {/* Progress bar */}
         <div className="w-full max-w-md mx-auto mb-6">
@@ -475,21 +477,29 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
         </div>
         
         <div className="space-y-2 text-left max-w-md mx-auto">
-          <div className="flex items-center gap-2 text-sm">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
+            generationProgress.stage === 'starting' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : ''
+          }`}>
             {getStageIcon('starting', generationProgress.stage)}
-            <span className={generationProgress.stage === 'starting' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-300'}>Initializing Claude Code</span>
+            <span className={generationProgress.stage === 'starting' ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-300'}>Initializing Claude Code</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
+            generationProgress.stage === 'processing' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : ''
+          }`}>
             {getStageIcon('processing', generationProgress.stage)}
-            <span className={generationProgress.stage === 'processing' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-300'}>Analyzing requirements and codebase</span>
+            <span className={generationProgress.stage === 'processing' ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-300'}>Analyzing requirements and codebase</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
+            generationProgress.stage === 'finalizing' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : ''
+          }`}>
             {getStageIcon('finalizing', generationProgress.stage)}
-            <span className={generationProgress.stage === 'finalizing' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-300'}>Finalizing PRP generation</span>
+            <span className={generationProgress.stage === 'finalizing' ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-300'}>Finalizing PRP generation</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
+            generationProgress.stage === 'complete' ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : ''
+          }`}>
             {getStageIcon('complete', generationProgress.stage)}
-            <span className={generationProgress.stage === 'complete' ? 'text-green-600 dark:text-green-400 font-medium' : 'text-gray-600 dark:text-gray-300'}>Generation complete</span>
+            <span className={generationProgress.stage === 'complete' ? 'text-green-900 dark:text-green-200 font-semibold' : 'text-gray-600 dark:text-gray-300'}>Generation complete</span>
           </div>
         </div>
         

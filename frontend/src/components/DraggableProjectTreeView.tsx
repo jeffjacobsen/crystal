@@ -69,9 +69,9 @@ export function DraggableProjectTreeView() {
     debounce(async (projectIds: number[], folderIds: string[]) => {
       try {
         await window.electronAPI?.uiState?.saveExpanded(projectIds, folderIds);
-        console.log('[DraggableProjectTreeView] Saved UI state:', { projectIds, folderIds });
+        // console.log('[DraggableProjectTreeView] Saved UI state:', { projectIds, folderIds });
       } catch (error) {
-        console.error('[DraggableProjectTreeView] Failed to save UI state:', error);
+        // console.error('[DraggableProjectTreeView] Failed to save UI state:', error);
       }
     }, 500),
     []
@@ -85,38 +85,38 @@ export function DraggableProjectTreeView() {
   }, [expandedProjects, expandedFolders, saveUIState]);
 
   const handleFolderCreated = (folder: Folder) => {
-    console.log('[DraggableProjectTreeView] Folder created event received:', {
-      id: folder.id,
-      name: folder.name,
-      projectId: folder.projectId,
-      displayOrder: folder.displayOrder
-    });
+    // console.log('[DraggableProjectTreeView] Folder created event received:', {
+    //   id: folder.id,
+    //   name: folder.name,
+    //   projectId: folder.projectId,
+    //   displayOrder: folder.displayOrder
+    // });
     
     // Add the folder to the appropriate project
     setProjectsWithSessions(prevProjects => {
-      console.log('[DraggableProjectTreeView] Current projects before folder add:', prevProjects.map(p => ({ id: p.id, name: p.name, folderCount: p.folders?.length || 0 })));
+      // console.log('[DraggableProjectTreeView] Current projects before folder add:', prevProjects.map(p => ({ id: p.id, name: p.name, folderCount: p.folders?.length || 0 })));
       
       const updatedProjects = prevProjects.map(project => {
         if (project.id === folder.projectId) {
-          console.log('[DraggableProjectTreeView] Found matching project, adding folder to:', project.name);
+          // console.log('[DraggableProjectTreeView] Found matching project, adding folder to:', project.name);
           const updatedProject = {
             ...project,
             folders: [...(project.folders || []), folder]
           };
-          console.log('[DraggableProjectTreeView] Updated project folders:', updatedProject.folders);
+          // console.log('[DraggableProjectTreeView] Updated project folders:', updatedProject.folders);
           return updatedProject;
         }
         return project;
       });
       
-      console.log('[DraggableProjectTreeView] Projects after folder add:', updatedProjects.map(p => ({ id: p.id, name: p.name, folderCount: p.folders?.length || 0 })));
+      // console.log('[DraggableProjectTreeView] Projects after folder add:', updatedProjects.map(p => ({ id: p.id, name: p.name, folderCount: p.folders?.length || 0 })));
       return updatedProjects;
     });
     
     // Auto-expand the folder when it's created
     setExpandedFolders(prev => {
       const newSet = new Set([...prev, folder.id]);
-      console.log('[DraggableProjectTreeView] Expanded folders after add:', Array.from(newSet));
+      // console.log('[DraggableProjectTreeView] Expanded folders after add:', Array.from(newSet));
       return newSet;
     });
     
@@ -124,7 +124,7 @@ export function DraggableProjectTreeView() {
     if (folder.projectId) {
       setExpandedProjects(prev => {
         const newSet = new Set([...prev, folder.projectId]);
-        console.log('[DraggableProjectTreeView] Expanded projects after add:', Array.from(newSet));
+        // console.log('[DraggableProjectTreeView] Expanded projects after add:', Array.from(newSet));
         return newSet;
       });
     }
@@ -135,15 +135,15 @@ export function DraggableProjectTreeView() {
     
     // Set up event listeners for session updates with targeted updates
     const handleSessionCreated = (newSession: Session) => {
-      console.log('[DraggableProjectTreeView] Session created:', {
-        id: newSession.id, 
-        projectId: newSession.projectId,
-        folderId: newSession.folderId,
-        name: newSession.name
-      });
+      // console.log('[DraggableProjectTreeView] Session created:', {
+      //   id: newSession.id, 
+      //   projectId: newSession.projectId,
+      //   folderId: newSession.folderId,
+      //   name: newSession.name
+      // });
       
       if (!newSession.projectId) {
-        console.warn('[DraggableProjectTreeView] Session created without projectId, reloading all');
+        // console.warn('[DraggableProjectTreeView] Session created without projectId, reloading all');
         loadProjectsWithSessions();
         return;
       }
@@ -154,9 +154,9 @@ export function DraggableProjectTreeView() {
         const folderExists = project?.folders?.some(f => f.id === newSession.folderId);
         
         if (!folderExists) {
-          console.log('[DraggableProjectTreeView] Session has folderId but folder not found in state, reloading projects');
-          console.log('[DraggableProjectTreeView] Looking for folder:', newSession.folderId);
-          console.log('[DraggableProjectTreeView] Current folders in project:', project?.folders?.map(f => f.id));
+          // console.log('[DraggableProjectTreeView] Session has folderId but folder not found in state, reloading projects');
+          // console.log('[DraggableProjectTreeView] Looking for folder:', newSession.folderId);
+          // console.log('[DraggableProjectTreeView] Current folders in project:', project?.folders?.map(f => f.id));
           // Reload to get the folder that might have been created
           loadProjectsWithSessions();
           return;
@@ -172,8 +172,8 @@ export function DraggableProjectTreeView() {
               ...project,
               sessions: [...project.sessions, newSession]
             };
-            console.log('[DraggableProjectTreeView] Updated project after session creation:', updatedProject);
-            console.log('[DraggableProjectTreeView] Project folders:', updatedProject.folders);
+            // console.log('[DraggableProjectTreeView] Updated project after session creation:', updatedProject);
+            // console.log('[DraggableProjectTreeView] Project folders:', updatedProject.folders);
             return updatedProject;
           }
           return project;
@@ -181,7 +181,7 @@ export function DraggableProjectTreeView() {
         
         // If no project was found, log a warning
         if (!updatedProjects.some(p => p.id === newSession.projectId)) {
-          console.warn('[DraggableProjectTreeView] No matching project found for session projectId:', newSession.projectId);
+          // console.warn('[DraggableProjectTreeView] No matching project found for session projectId:', newSession.projectId);
         }
         
         return updatedProjects;
@@ -195,13 +195,13 @@ export function DraggableProjectTreeView() {
       // If the session has a folderId, auto-expand that folder too
       if (newSession.folderId) {
         setExpandedFolders(prev => new Set([...prev, newSession.folderId!]));
-        console.log('[DraggableProjectTreeView] Auto-expanding folder:', newSession.folderId);
+        // console.log('[DraggableProjectTreeView] Auto-expanding folder:', newSession.folderId);
       }
     };
     
     const handleSessionUpdated = (updatedSession: Session) => {
-      console.log('[DraggableProjectTreeView] Session updated event received:', updatedSession);
-      console.log('[DraggableProjectTreeView] Updated session isFavorite:', updatedSession.isFavorite);
+      // console.log('[DraggableProjectTreeView] Session updated event received:', updatedSession);
+      // console.log('[DraggableProjectTreeView] Updated session isFavorite:', updatedSession.isFavorite);
       
       // Update only the specific session that changed
       setProjectsWithSessions(prevProjects => 
@@ -216,7 +216,7 @@ export function DraggableProjectTreeView() {
               ...updatedSessions[sessionIndex],
               ...updatedSession
             };
-            console.log('[DraggableProjectTreeView] Updated session after merge:', updatedSessions[sessionIndex]);
+            // console.log('[DraggableProjectTreeView] Updated session after merge:', updatedSessions[sessionIndex]);
             return {
               ...project,
               sessions: updatedSessions
@@ -254,7 +254,7 @@ export function DraggableProjectTreeView() {
       
       // Listen for project updates
       const unsubscribeProjectUpdated = window.electronAPI.events.onProjectUpdated((updatedProject: Project) => {
-        console.log('[DraggableProjectTreeView] Project updated event received:', updatedProject);
+        // console.log('[DraggableProjectTreeView] Project updated event received:', updatedProject);
         
         // Update the project in our state
         setProjectsWithSessions(prevProjects => 
@@ -288,13 +288,13 @@ export function DraggableProjectTreeView() {
       setIsLoading(true);
       const response = await API.sessions.getAllWithProjects();
       if (response.success && response.data) {
-        console.log('[DraggableProjectTreeView] Loaded projects with sessions:', response.data);
-        // Log folder data specifically
-        response.data.forEach((project: ProjectWithSessions) => {
-          if (project.folders && project.folders.length > 0) {
-            console.log(`[DraggableProjectTreeView] Project "${project.name}" folders:`, project.folders);
-          }
-        });
+        // console.log('[DraggableProjectTreeView] Loaded projects with sessions:', response.data);
+        // // Log folder data specifically
+        // response.data.forEach((project: ProjectWithSessions) => {
+        //   if (project.folders && project.folders.length > 0) {
+        //     console.log(`[DraggableProjectTreeView] Project "${project.name}" folders:`, project.folders);
+        //   }
+        // });
         
         setProjectsWithSessions(response.data);
         
@@ -304,10 +304,10 @@ export function DraggableProjectTreeView() {
           const stateResponse = await window.electronAPI?.uiState?.getExpanded();
           if (stateResponse?.success && stateResponse.data) {
             savedState = stateResponse.data;
-            console.log('[DraggableProjectTreeView] Loaded saved UI state:', savedState);
+            // console.log('[DraggableProjectTreeView] Loaded saved UI state:', savedState);
           }
         } catch (error) {
-          console.error('[DraggableProjectTreeView] Failed to load saved UI state:', error);
+          // console.error('[DraggableProjectTreeView] Failed to load saved UI state:', error);
         }
         
         if (savedState && savedState.expandedProjects && savedState.expandedFolders) {
@@ -349,7 +349,7 @@ export function DraggableProjectTreeView() {
         }
       }
     } catch (error) {
-      console.error('Failed to load projects with sessions:', error);
+      // console.error('Failed to load projects with sessions:', error);
     } finally {
       setIsLoading(false);
     }
@@ -397,7 +397,7 @@ export function DraggableProjectTreeView() {
       try {
         // First, delete all sessions in the folder
         if (folderSessions.length > 0) {
-          console.log(`Deleting ${folderSessions.length} sessions in folder "${folder.name}"`);
+          // console.log(`Deleting ${folderSessions.length} sessions in folder "${folder.name}"`);
           
           // Mark all sessions as deleting to prevent individual delete operations
           const sessionIds = folderSessions.map(s => s.id);
@@ -410,9 +410,9 @@ export function DraggableProjectTreeView() {
               if (!sessionResponse.success) {
                 throw new Error(`Failed to delete session "${session.name}": ${sessionResponse.error}`);
               }
-              console.log(`Deleted session: ${session.name}`);
+              // console.log(`Deleted session: ${session.name}`);
             } catch (error: any) {
-              console.error(`Error deleting session ${session.name}:`, error);
+              // console.error(`Error deleting session ${session.name}:`, error);
               showError({
                 title: `Failed to delete session "${session.name}"`,
                 error: error.message || 'Unknown error occurred'
@@ -440,7 +440,7 @@ export function DraggableProjectTreeView() {
         }
         
         // Then delete the folder
-        console.log(`Deleting folder: ${folder.name}`);
+        // console.log(`Deleting folder: ${folder.name}`);
         const response = await API.folders.delete(folder.id);
         if (response.success) {
           // Update local state to remove the folder
@@ -459,7 +459,7 @@ export function DraggableProjectTreeView() {
             return newSet;
           });
           
-          console.log(`Successfully deleted folder "${folder.name}" and ${folderSessions.length} sessions`);
+          // console.log(`Successfully deleted folder "${folder.name}" and ${folderSessions.length} sessions`);
           
           // Clear deleting state after successful deletion
           useSessionStore.getState().clearDeletingSessionIds();
@@ -470,7 +470,7 @@ export function DraggableProjectTreeView() {
           });
         }
       } catch (error: any) {
-        console.error('Failed to delete folder:', error);
+        // console.error('Failed to delete folder:', error);
         showError({
           title: 'Failed to delete folder',
           error: error.message || 'Unknown error occurred'
@@ -514,7 +514,7 @@ export function DraggableProjectTreeView() {
         });
       }
     } catch (error: any) {
-      console.error('Error handling project click:', error);
+      // console.error('Error handling project click:', error);
       showError({
         title: 'Failed to open main repository session',
         error: error.message || 'Unknown error occurred'
@@ -537,7 +537,7 @@ export function DraggableProjectTreeView() {
         setNewProject(prev => ({ ...prev, mainBranch: response.data }));
       }
     } catch (error) {
-      console.log('Could not detect branch, using default');
+      // console.log('Could not detect branch, using default');
     }
   };
 
@@ -564,7 +564,7 @@ export function DraggableProjectTreeView() {
       const newProjectWithSessions = { ...response.data, sessions: [], folders: [] };
       setProjectsWithSessions(prev => [...prev, newProjectWithSessions]);
     } catch (error: any) {
-      console.error('Failed to create project:', error);
+      // console.error('Failed to create project:', error);
       showError({
         title: 'Failed to Create Project',
         error: error.message || 'An error occurred while creating the project.',
@@ -577,11 +577,11 @@ export function DraggableProjectTreeView() {
     if (!newFolderName || !selectedProjectForFolder) return;
 
     try {
-      console.log('[DraggableProjectTreeView] Creating folder:', newFolderName, 'in project:', selectedProjectForFolder.id);
+      // console.log('[DraggableProjectTreeView] Creating folder:', newFolderName, 'in project:', selectedProjectForFolder.id);
       const response = await API.folders.create(newFolderName, selectedProjectForFolder.id);
 
       if (response.success && response.data) {
-        console.log('[DraggableProjectTreeView] Folder created successfully:', response.data);
+        // console.log('[DraggableProjectTreeView] Folder created successfully:', response.data);
         
         // Update the project with the new folder
         setProjectsWithSessions(prev => prev.map(project => {
@@ -590,7 +590,7 @@ export function DraggableProjectTreeView() {
               ...project,
               folders: [...(project.folders || []), response.data]
             };
-            console.log('[DraggableProjectTreeView] Updated project with new folder:', updatedProject);
+            // console.log('[DraggableProjectTreeView] Updated project with new folder:', updatedProject);
             return updatedProject;
           }
           return project;
@@ -607,7 +607,7 @@ export function DraggableProjectTreeView() {
         });
       }
     } catch (error: any) {
-      console.error('Failed to create folder:', error);
+      // console.error('Failed to create folder:', error);
       showError({
         title: 'Failed to Create Folder',
         error: error.message || 'Unknown error occurred'
@@ -759,7 +759,7 @@ export function DraggableProjectTreeView() {
             });
           }
         } catch (error: any) {
-          console.error('Failed to reorder projects:', error);
+          // console.error('Failed to reorder projects:', error);
           showError({
             title: 'Failed to reorder projects',
             error: error.message || 'Unknown error occurred'
@@ -816,7 +816,7 @@ export function DraggableProjectTreeView() {
             });
           }
         } catch (error: any) {
-          console.error('Failed to reorder sessions:', error);
+          // console.error('Failed to reorder sessions:', error);
           showError({
             title: 'Failed to reorder sessions',
             error: error.message || 'Unknown error occurred'
@@ -832,7 +832,7 @@ export function DraggableProjectTreeView() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[DraggableProjectTreeView] Folder drag over:', { folder, projectId, dragState });
+    // console.log('[DraggableProjectTreeView] Folder drag over:', { folder, projectId, dragState });
     
     // Allow sessions to be dropped into folders
     if (dragState.type === 'session') {
@@ -859,15 +859,15 @@ export function DraggableProjectTreeView() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[DraggableProjectTreeView] Folder drop:', { folder, projectId, dragState });
+    // console.log('[DraggableProjectTreeView] Folder drop:', { folder, projectId, dragState });
     
     if (dragState.type === 'session' && dragState.sessionId) {
       // Move session into folder
       try {
-        console.log('[DraggableProjectTreeView] Moving session', dragState.sessionId, 'to folder', folder.id);
+        // console.log('[DraggableProjectTreeView] Moving session', dragState.sessionId, 'to folder', folder.id);
         const response = await API.folders.moveSession(dragState.sessionId, folder.id);
         if (response.success) {
-          console.log('[DraggableProjectTreeView] Session moved successfully');
+          // console.log('[DraggableProjectTreeView] Session moved successfully');
           // Update local state
           setProjectsWithSessions(prev => prev.map(project => {
             if (project.id === projectId) {
@@ -876,7 +876,7 @@ export function DraggableProjectTreeView() {
                   ? { ...session, folderId: folder.id }
                   : session
               );
-              console.log('[DraggableProjectTreeView] Updated sessions after move:', updatedSessions);
+              // console.log('[DraggableProjectTreeView] Updated sessions after move:', updatedSessions);
               return { ...project, sessions: updatedSessions };
             }
             return project;
@@ -891,7 +891,7 @@ export function DraggableProjectTreeView() {
           });
         }
       } catch (error: any) {
-        console.error('Failed to move session:', error);
+        // console.error('Failed to move session:', error);
         showError({
           title: 'Failed to move session',
           error: error.message || 'Unknown error occurred'
@@ -940,7 +940,7 @@ export function DraggableProjectTreeView() {
           }
         }
       } catch (error: any) {
-        console.error('Failed to reorder folders:', error);
+        // console.error('Failed to reorder folders:', error);
         showError({
           title: 'Failed to reorder folders',
           error: error.message || 'Unknown error occurred'
@@ -977,7 +977,7 @@ export function DraggableProjectTreeView() {
           });
         }
       } catch (error: any) {
-        console.error('Failed to move session:', error);
+        // console.error('Failed to move session:', error);
         showError({
           title: 'Failed to move session',
           error: error.message || 'Unknown error occurred'
@@ -1122,12 +1122,12 @@ export function DraggableProjectTreeView() {
                       const isDraggingOverFolder = dragState.overType === 'folder' && 
                                                    dragState.overFolderId === folder.id;
                       
-                      console.log('[DraggableProjectTreeView] Rendering folder:', {
-                        folder,
-                        isExpanded,
-                        folderSessionCount: folderSessions.length,
-                        isDraggingOverFolder
-                      });
+                      // console.log('[DraggableProjectTreeView] Rendering folder:', {
+                      //   folder,
+                      //   isExpanded,
+                      //   folderSessionCount: folderSessions.length,
+                      //   isDraggingOverFolder
+                      // });
                       
                       return (
                         <div key={folder.id} className="ml-4">

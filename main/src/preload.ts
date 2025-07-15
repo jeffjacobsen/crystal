@@ -145,13 +145,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Document management
   documents: {
-    getAll: (projectId: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:get-all', projectId),
+    getAll: (projectId: number | null): Promise<IPCResponse> => ipcRenderer.invoke('documents:get-all', projectId),
     get: (documentId: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:get', documentId),
-    create: (projectId: number, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string): Promise<IPCResponse> => 
+    create: (projectId: number | null, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string): Promise<IPCResponse> => 
       ipcRenderer.invoke('documents:create', projectId, title, content, category, tags, filePath, url),
     update: (documentId: number, updates: any): Promise<IPCResponse> => ipcRenderer.invoke('documents:update', documentId, updates),
     delete: (documentId: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:delete', documentId),
     search: (projectId: number, query: string, limit?: number): Promise<IPCResponse> => ipcRenderer.invoke('documents:search', projectId, query, limit),
+    scrapeUrl: (url: string, options?: {
+      mode?: 'single' | 'recursive' | 'auto';
+      maxDepth?: number;
+      maxPages?: number;
+      followInternalOnly?: boolean;
+    }): Promise<IPCResponse> => ipcRenderer.invoke('documents:scrape-url', url, options),
   },
 
   // PRP (Product Requirement Prompt) management
@@ -289,6 +295,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('prp:generation-progress', wrappedCallback);
       return () => ipcRenderer.removeListener('prp:generation-progress', wrappedCallback);
     },
+    
+    // Document scraping events
+    onDocumentScrapeProgress: (callback: (progress: any) => void) => {
+      const wrappedCallback = (_event: any, progress: any) => callback(progress);
+      ipcRenderer.on('documents:scrape-progress', wrappedCallback);
+      return () => ipcRenderer.removeListener('documents:scrape-progress', wrappedCallback);
+    },
   },
 
   // Debug utilities
@@ -302,13 +315,13 @@ contextBridge.exposeInMainWorld('electron', {
   openExternal: (url: string) => ipcRenderer.invoke('openExternal', url),
   invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
   on: (channel: string, callback: (...args: any[]) => void) => {
-    const validChannels = ['permission:request', 'prp:generation-progress'];
+    const validChannels = ['permission:request', 'prp:generation-progress', 'documents:scrape-progress'];
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (_event, ...args) => callback(...args));
     }
   },
   off: (channel: string, callback: (...args: any[]) => void) => {
-    const validChannels = ['permission:request', 'prp:generation-progress'];
+    const validChannels = ['permission:request', 'prp:generation-progress', 'documents:scrape-progress'];
     if (validChannels.includes(channel)) {
       ipcRenderer.removeListener(channel, callback);
     }

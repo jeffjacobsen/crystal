@@ -212,7 +212,6 @@ export const SessionView = memo(() => {
         isOpen={hook.showGitErrorDialog}
         onClose={() => hook.setShowGitErrorDialog(false)}
         errorDetails={hook.gitErrorDetails}
-        formatGitOutput={hook.formatGitOutput}
         getGitErrorTips={hook.getGitErrorTips}
         onAbortAndUseClaude={hook.handleAbortRebaseAndUseClaude}
       />

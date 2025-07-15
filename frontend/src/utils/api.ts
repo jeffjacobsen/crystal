@@ -371,7 +371,7 @@ export class API {
 
   // Document management
   static documents = {
-    async getAll(projectId: number) {
+    async getAll(projectId: number | null) {
       if (!isElectron()) throw new Error('Electron API not available');
       return window.electronAPI.documents.getAll(projectId);
     },
@@ -381,7 +381,7 @@ export class API {
       return window.electronAPI.documents.get(documentId);
     },
 
-    async create(projectId: number, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) {
+    async create(projectId: number | null, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) {
       if (!isElectron()) throw new Error('Electron API not available');
       return window.electronAPI.documents.create(projectId, title, content, category, tags, filePath, url);
     },
@@ -399,6 +399,16 @@ export class API {
     async search(projectId: number, query: string, limit?: number) {
       if (!isElectron()) throw new Error('Electron API not available');
       return window.electronAPI.documents.search(projectId, query, limit);
+    },
+
+    async scrapeUrl(url: string, options?: {
+      mode?: 'single' | 'recursive' | 'auto';
+      maxDepth?: number;
+      maxPages?: number;
+      followInternalOnly?: boolean;
+    }) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.documents.scrapeUrl(url, options);
     },
   };
 

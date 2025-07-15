@@ -150,12 +150,18 @@ interface ElectronAPI {
 
   // Document management
   documents: {
-    getAll: (projectId: number) => Promise<IPCResponse>;
+    getAll: (projectId: number | null) => Promise<IPCResponse>;
     get: (documentId: number) => Promise<IPCResponse>;
-    create: (projectId: number, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) => Promise<IPCResponse>;
+    create: (projectId: number | null, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) => Promise<IPCResponse>;
     update: (documentId: number, updates: any) => Promise<IPCResponse>;
     delete: (documentId: number) => Promise<IPCResponse>;
     search: (projectId: number, query: string, limit?: number) => Promise<IPCResponse>;
+    scrapeUrl: (url: string, options?: {
+      mode?: 'single' | 'recursive' | 'auto';
+      maxDepth?: number;
+      maxPages?: number;
+      followInternalOnly?: boolean;
+    }) => Promise<IPCResponse>;
   };
 
   // PRP (Product Requirement Prompt) management
@@ -231,6 +237,13 @@ interface ElectronAPI {
       message: string;
       progress: number;
       metadata?: any;
+    }) => void) => () => void;
+    
+    // Document scraping events
+    onDocumentScrapeProgress: (callback: (progress: {
+      status: string;
+      message: string;
+      progress?: number;
     }) => void) => () => void;
     
     removeAllListeners: (channel: string) => void;

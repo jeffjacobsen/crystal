@@ -41,10 +41,44 @@ export class PRPGenerationService extends EventEmitter {
       
       this.logger.info(`Generating PRP using template: ${metadata.name}`);
       
-      // Process variables
-      let processedTemplate = template;
+      // Extract content from <template> tags if present
+      let templateContent = template;
+      const templateMatch = template.match(/<template>([\s\S]*?)<\/template>/);
+      if (templateMatch) {
+        templateContent = templateMatch[1].trim();
+      }
       
-      // First, replace user-provided variables
+      // Process variables
+      let processedTemplate = templateContent;
+      
+      // First, validate required variables
+      if (metadata.variables) {
+        for (const variable of metadata.variables) {
+          const value = request.variables?.[variable.name] ?? variable.default;
+          
+          // Check required variables
+          if (variable.required && (value === undefined || value === null || value === '')) {
+            throw new Error(`Missing required variable: ${variable.name}`);
+          }
+          
+          // Validate patterns for string variables
+          if (variable.type === 'string' && variable.pattern && value !== undefined && value !== null && value !== '') {
+            const pattern = new RegExp(variable.pattern);
+            if (!pattern.test(String(value))) {
+              throw new Error(`Invalid value for ${variable.name}: does not match pattern ${variable.pattern}`);
+            }
+          }
+          
+          // Validate enum values (for string type with options)
+          if (variable.type === 'string' && variable.options && value !== undefined && value !== null && value !== '') {
+            if (!variable.options.includes(String(value))) {
+              throw new Error(`Invalid value for ${variable.name}: must be one of ${variable.options.join(', ')}`);
+            }
+          }
+        }
+      }
+      
+      // Replace user-provided variables
       if (request.variables && metadata.variables) {
         for (const variable of metadata.variables) {
           const value = request.variables[variable.name] ?? variable.default ?? '';
@@ -54,6 +88,7 @@ export class PRPGenerationService extends EventEmitter {
           
           // Handle conditional sections for boolean variables
           if (variable.type === 'boolean') {
+            // Handle positive conditionals {{#VAR}}...{{/VAR}}
             const conditionalPattern = new RegExp(
               `{{#${variable.name}}}([\\s\\S]*?){{/${variable.name}}}`,
               'g'
@@ -61,6 +96,16 @@ export class PRPGenerationService extends EventEmitter {
             processedTemplate = processedTemplate.replace(
               conditionalPattern,
               value ? '$1' : ''
+            );
+            
+            // Handle negative conditionals {{^VAR}}...{{/VAR}}
+            const negativePattern = new RegExp(
+              `{{\\^${variable.name}}}([\\s\\S]*?){{/${variable.name}}}`,
+              'g'
+            );
+            processedTemplate = processedTemplate.replace(
+              negativePattern,
+              !value ? '$1' : ''
             );
           }
           
@@ -92,13 +137,16 @@ export class PRPGenerationService extends EventEmitter {
       }
       
       // Use Claude Code to enhance the template with project-specific context
-      const enhancedContent = await this.enhanceWithClaude(
-        processedTemplate,
-        request
-      );
+      let finalContent = processedTemplate;
+      if (request.useClaudeGeneration !== false) {
+        finalContent = await this.enhanceWithClaude(
+          processedTemplate,
+          request
+        );
+      }
       
       return {
-        content: enhancedContent,
+        content: finalContent,
         templateUsed: metadata.id,
         generatedAt: new Date().toISOString()
       };

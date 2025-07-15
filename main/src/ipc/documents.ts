@@ -6,7 +6,7 @@ export function registerDocumentHandlers(services: AppServices) {
   const { localDocumentService: documentService, prpService } = services;
 
   // Document operations
-  ipcMain.handle('documents:get-all', async (_, projectId: number) => {
+  ipcMain.handle('documents:get-all', async (_, projectId: number | null) => {
     try {
       const documents = await documentService.getDocuments(projectId);
       return { success: true, data: documents };
@@ -26,7 +26,7 @@ export function registerDocumentHandlers(services: AppServices) {
     }
   });
 
-  ipcMain.handle('documents:create', async (_, projectId: number, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) => {
+  ipcMain.handle('documents:create', async (_, projectId: number | null, title: string, content: string, category?: string, tags?: string[], filePath?: string, url?: string) => {
     try {
       const document = await documentService.createDocument(
         projectId, 
@@ -71,6 +71,59 @@ export function registerDocumentHandlers(services: AppServices) {
     } catch (error) {
       console.error('Failed to search documents:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to search documents' };
+    }
+  });
+
+  // Web scraping operations
+  ipcMain.handle('documents:scrape-url', async (event, url: string, options?: {
+    mode?: 'single' | 'recursive' | 'auto';
+    maxDepth?: number;
+    maxPages?: number;
+    followInternalOnly?: boolean;
+  }) => {
+    try {
+      if (!services.webScrapingService) {
+        return { success: false, error: 'Web scraping service not available' };
+      }
+
+      // Set up progress listener
+      const progressHandler = (progress: any) => {
+        event.sender.send('documents:scrape-progress', progress);
+      };
+
+      services.webScrapingService.on('progress', progressHandler);
+
+      try {
+        const result = await services.webScrapingService.scrapeUrl(url, options);
+        
+        if (result.success) {
+          // Auto-detect category and tags
+          const category = services.webScrapingService.detectDocumentationType(url, result.content || '');
+          const tags = services.webScrapingService.generateTags(url, result.content || '', result.metadata);
+          
+          return { 
+            success: true, 
+            data: {
+              title: result.title,
+              content: result.content,
+              excerpt: result.excerpt,
+              category,
+              tags,
+              url,
+              metadata: result.metadata,
+              pagesCount: (result.metadata as any)?.pagesCount
+            }
+          };
+        } else {
+          return { success: false, error: result.error || 'Failed to scrape URL' };
+        }
+      } finally {
+        // Clean up listener
+        services.webScrapingService.removeListener('progress', progressHandler);
+      }
+    } catch (error) {
+      console.error('Failed to scrape URL:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to scrape URL' };
     }
   });
 

@@ -13,6 +13,7 @@ import type { LocalDocumentService } from '../services/localDocumentService';
 import type { PRPService } from '../services/prpService';
 import type { TemplateService } from '../services/templateService';
 import type { PRPGenerationService } from '../services/prpGenerationService';
+import type { WebScrapingService } from '../services/webScrapingService';
 
 export interface AppServices {
   app: App;
@@ -29,6 +30,7 @@ export interface AppServices {
   prpService: PRPService;
   templateService: TemplateService;
   prpGenerationService: PRPGenerationService;
+  webScrapingService?: WebScrapingService;
   taskQueue: TaskQueue | null;
   getMainWindow: () => BrowserWindow | null;
 } 

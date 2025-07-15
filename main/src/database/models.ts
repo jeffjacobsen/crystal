@@ -142,7 +142,6 @@ export interface CreateExecutionDiffData {
 // Document and PRP interfaces
 export interface ProductRequirementPrompt {
   id: number;
-  project_id: number;
   title: string;
   content: string;
   version: number;
@@ -152,7 +151,6 @@ export interface ProductRequirementPrompt {
 
 export interface Document {
   id: number;
-  project_id: number;
   title: string;
   content: string;
   excerpt?: string;

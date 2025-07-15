@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useSocket } from './hooks/useSocket';
+import { useIPCEvents } from './hooks/useIPCEvents';
 import { useNotifications } from './hooks/useNotifications';
 import { useResizable } from './hooks/useResizable';
 import { Sidebar } from './components/Sidebar';
 import { SessionView } from './components/SessionView';
 import { PRPManagement } from './components/PRPManagement';
+import { DocumentManagement } from './components/DocumentManagement';
 import Help from './components/Help';
 import Welcome from './components/Welcome';
 import { AboutDialog } from './components/AboutDialog';
@@ -15,7 +16,7 @@ import { useErrorStore } from './stores/errorStore';
 import { useSessionStore } from './stores/sessionStore';
 import { API } from './utils/api';
 
-type ViewMode = 'sessions' | 'prompts';
+type ViewMode = 'sessions' | 'prompts' | 'documents';
 
 interface PermissionRequest {
   id: string;
@@ -41,7 +42,7 @@ function App() {
     storageKey: 'crystal-sidebar-width'
   });
   
-  useSocket();
+  useIPCEvents();
   useNotifications();
 
   // Add keyboard shortcut to show Welcome screen
@@ -104,7 +105,7 @@ function App() {
         width={sidebarWidth}
         onResize={startResize}
       />
-      {viewMode === 'sessions' ? <SessionView /> : <PRPManagement />}
+      {viewMode === 'sessions' ? <SessionView /> : viewMode === 'prompts' ? <PRPManagement /> : <DocumentManagement />}
       <Help 
         isOpen={isHelpOpen} 
         onClose={() => setIsHelpOpen(false)} 

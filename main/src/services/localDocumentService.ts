@@ -12,13 +12,11 @@ export class LocalDocumentService {
   }
 
   // Document operations
-  async getDocuments(projectId: number): Promise<Document[]> {
+  async getDocuments(projectId: number | null = null): Promise<Document[]> {
     try {
-      const documents = this.db.db.prepare(`
-        SELECT * FROM documents 
-        WHERE project_id = ? 
-        ORDER BY category, created_at DESC
-      `).all(projectId) as Document[];
+      // Since project_id no longer exists, we always get all documents
+      const query = `SELECT * FROM documents ORDER BY category, created_at DESC`;
+      const documents = this.db.db.prepare(query).all() as Document[];
 
       // Parse tags from JSON
       return documents.map(doc => ({
@@ -52,18 +50,18 @@ export class LocalDocumentService {
     }
   }
 
-  async createDocument(projectId: number, title: string, content: string, category = 'general', tags: string[] = [], filePath?: string, url?: string): Promise<Document> {
+  async createDocument(projectId: number | null, title: string, content: string, category = 'general', tags: string[] = [], filePath?: string, url?: string): Promise<Document> {
     try {
       const excerpt = this.createExcerpt(content);
       const wordCount = this.countWords(content);
       const tagsJson = JSON.stringify(tags);
 
       const result = this.db.db.prepare(`
-        INSERT INTO documents (project_id, title, content, excerpt, category, tags, word_count, file_path, url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(projectId, title, content, excerpt, category, tagsJson, wordCount, filePath || null, url || null);
+        INSERT INTO documents (title, content, excerpt, category, tags, word_count, file_path, url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(title, content, excerpt, category, tagsJson, wordCount, filePath || null, url || null);
 
-      this.logger.info(`Created document: ${title} in project ${projectId}`);
+      this.logger.info(`Created document: ${title}`);
       return this.getDocument(result.lastInsertRowid as number);
     } catch (error) {
       this.logger.error('Failed to create document:', error instanceof Error ? error : new Error(String(error)));
@@ -131,10 +129,10 @@ export class LocalDocumentService {
         SELECT d.*
         FROM documents d
         JOIN documents_fts ON d.id = documents_fts.rowid
-        WHERE d.project_id = ? AND documents_fts MATCH ?
+        WHERE documents_fts MATCH ?
         ORDER BY rank
         LIMIT ?
-      `).all(projectId, query, limit) as Document[];
+      `).all(query, limit) as Document[];
 
       // Parse tags from JSON
       return results.map(doc => ({
@@ -148,14 +146,12 @@ export class LocalDocumentService {
       const likeQuery = `%${query}%`;
       const results = this.db.db.prepare(`
         SELECT * FROM documents
-        WHERE project_id = ? AND (
-          title LIKE ? OR 
+        WHERE title LIKE ? OR 
           content LIKE ? OR 
           tags LIKE ?
-        )
         ORDER BY created_at DESC
         LIMIT ?
-      `).all(projectId, likeQuery, likeQuery, likeQuery, limit) as Document[];
+      `).all(likeQuery, likeQuery, likeQuery, limit) as Document[];
 
       return results.map(doc => ({
         ...doc,
