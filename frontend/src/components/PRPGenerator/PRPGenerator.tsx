@@ -457,27 +457,16 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
         <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
           <Sparkles className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-pulse" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
           Generating PRP with Claude Code
         </h3>
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <p className="text-lg font-semibold text-gray-900 dark:text-white">
-            {generationProgress.message}
-          </p>
-        </div>
         
-        {/* Progress bar */}
-        <div className="w-full max-w-md mx-auto mb-6">
-          <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-            <div 
-              className="bg-blue-600 h-full rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${generationProgress.progress}%` }}
-            />
+        {/* Telemetry View - moved to where progress bar was */}
+        {generationProgress.telemetry && (
+          <div className="w-full max-w-md mx-auto mb-6">
+            <TelemetryView telemetry={generationProgress.telemetry} />
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {generationProgress.progress}% complete
-          </p>
-        </div>
+        )}
         
         <div className="space-y-2 text-left max-w-md mx-auto">
           <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
@@ -505,13 +494,6 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
             <span className={generationProgress.stage === 'complete' ? 'text-green-900 dark:text-green-200 font-semibold' : 'text-gray-600 dark:text-gray-300'}>Generation complete</span>
           </div>
         </div>
-        
-        {/* Telemetry View */}
-        {generationProgress.telemetry && (
-          <div className="mt-6 max-w-md mx-auto">
-            <TelemetryView telemetry={generationProgress.telemetry} />
-          </div>
-        )}
         
         {generationProgress.metadata && (
           <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">

@@ -122,8 +122,20 @@ export class ClaudeTelemetryCollector {
   }
 
   getTelemetryData(): TelemetryData {
+    // Calculate current active time including ongoing operations
+    let currentActiveTime = this.metrics.activeTimeMs;
+    
+    // Add time from currently active operations
+    for (const [_, spanData] of this.currentSpans) {
+      const elapsed = Date.now() - spanData.startTime;
+      currentActiveTime += elapsed;
+    }
+    
     return {
-      metrics: { ...this.metrics },
+      metrics: { 
+        ...this.metrics,
+        activeTimeMs: currentActiveTime
+      },
       traces: {
         spans: this.getActiveSpans(),
       },

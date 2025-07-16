@@ -363,17 +363,17 @@ export class PRPGenerationService extends EventEmitter {
                   const timeSinceLastMessage = now - lastMessageTime;
                   const totalElapsed = now - startTime;
                   
-                  let statusMessage = `Claude is analyzing your requirements... (${messageCount} messages)`;
+                  let statusMessage = 'Claude is analyzing your requirements...';
                   
                   // Add warning if approaching timeouts
                   if (timeSinceLastMessage > 120000) { // 2 minutes of silence
-                    statusMessage += ' - waiting for response...';
+                    statusMessage = 'Waiting for Claude response...';
                   }
                   if (totalElapsed > 1200000) { // 20 minutes total
-                    statusMessage += ' - this is taking longer than usual';
+                    statusMessage = 'This is taking longer than usual...';
                   }
                   if (totalElapsed > 2400000) { // 40 minutes total
-                    statusMessage += ' (consider simplifying the request)';
+                    statusMessage = 'Consider simplifying the request if Claude seems stuck';
                   }
                   
                   this.emit('progress', {
