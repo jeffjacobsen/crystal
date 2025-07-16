@@ -460,7 +460,7 @@ export class ClaudeCodeManager extends EventEmitter {
         ...(this.configManager?.getConfig()?.verbose ? { MCP_DEBUG: '1' } : {}),
         // Add OpenTelemetry configuration for Claude
         ...getClaudeTelemetryEnv({
-          enable: this.configManager?.getConfig()?.enableTelemetry ?? false,
+          enable: this.configManager?.getConfig()?.enableTelemetry ?? true,
           exporter: this.configManager?.getConfig()?.telemetryExporter || 'console',
           endpoint: this.configManager?.getConfig()?.telemetryEndpoint
         }),

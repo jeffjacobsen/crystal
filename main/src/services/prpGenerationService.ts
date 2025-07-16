@@ -168,20 +168,21 @@ export class PRPGenerationService extends EventEmitter {
       const claudePath = this.getClaudePath();
       
       // Prepare environment
+      const telemetryEnv = getClaudeTelemetryEnv({
+        enable: true, // Always enable telemetry for PRP generation
+        exporter: this.configManager?.getConfig()?.telemetryExporter || 'console',
+        endpoint: this.configManager?.getConfig()?.telemetryEndpoint
+      });
+      
       const env = {
         ...process.env,
         PATH: getShellPath(),
-        // Enable OpenTelemetry for PRP generation
-        ...getClaudeTelemetryEnv({
-          enable: true, // Always enable telemetry for PRP generation
-          exporter: this.configManager?.getConfig()?.telemetryExporter || 'console',
-          endpoint: this.configManager?.getConfig()?.telemetryEndpoint
-        }),
+        ...telemetryEnv,
         OTEL_SERVICE_NAME: 'crystal-prp-generation'
-      };
+      } as { [key: string]: string };
       
       // Log telemetry configuration for debugging
-      this.logger.info(`Telemetry enabled: CLAUDE_CODE_ENABLE_TELEMETRY=${env.CLAUDE_CODE_ENABLE_TELEMETRY}, OTEL_METRICS_EXPORTER=${env.OTEL_METRICS_EXPORTER}`);
+      this.logger.info(`Telemetry enabled: CLAUDE_CODE_ENABLE_TELEMETRY=${telemetryEnv.CLAUDE_CODE_ENABLE_TELEMETRY}, OTEL_METRICS_EXPORTER=${telemetryEnv.OTEL_METRICS_EXPORTER}`);
       
       // Check if we should use streaming mode
       const useStreaming = request.streamProgress !== false;
