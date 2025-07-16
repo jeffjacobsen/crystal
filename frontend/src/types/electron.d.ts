@@ -236,6 +236,7 @@ interface ElectronAPI {
       stage: 'starting' | 'processing' | 'finalizing' | 'complete' | 'error';
       message: string;
       progress: number;
+      telemetry?: import('../../../shared/types/telemetry').TelemetryData;
       metadata?: any;
     }) => void) => () => void;
     

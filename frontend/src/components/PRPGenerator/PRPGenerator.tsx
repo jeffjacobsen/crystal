@@ -14,6 +14,8 @@ import {
   FolderOpen
 } from 'lucide-react';
 import type { PRPTemplate } from '../../types/prp';
+import { TelemetryView } from './TelemetryView';
+import type { TelemetryData } from '../../../../shared/types/telemetry';
 
 interface PRPGeneratorProps {
   isOpen: boolean;
@@ -38,6 +40,7 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
     stage: 'starting' | 'processing' | 'finalizing' | 'complete' | 'error';
     message: string;
     progress: number;
+    telemetry?: TelemetryData;
     metadata?: any;
   }>({
     stage: 'starting',
@@ -502,6 +505,13 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
             <span className={generationProgress.stage === 'complete' ? 'text-green-900 dark:text-green-200 font-semibold' : 'text-gray-600 dark:text-gray-300'}>Generation complete</span>
           </div>
         </div>
+        
+        {/* Telemetry View */}
+        {generationProgress.telemetry && (
+          <div className="mt-6 max-w-md mx-auto">
+            <TelemetryView telemetry={generationProgress.telemetry} />
+          </div>
+        )}
         
         {generationProgress.metadata && (
           <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">

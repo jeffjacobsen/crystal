@@ -9,6 +9,9 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import { getShellPath, findExecutableInPath } from '../utils/shellPath';
 import { EventEmitter } from 'events';
+import { getClaudeTelemetryEnv, getTracer } from '../telemetry';
+import { ClaudeTelemetryCollector } from '../telemetry/claudeInstrumentation';
+import { SpanStatusCode } from '@opentelemetry/api';
 
 export class PRPGenerationService extends EventEmitter {
   private lastProgress = 0;
@@ -167,8 +170,18 @@ export class PRPGenerationService extends EventEmitter {
       // Prepare environment
       const env = {
         ...process.env,
-        PATH: getShellPath()
+        PATH: getShellPath(),
+        // Enable OpenTelemetry for PRP generation
+        ...getClaudeTelemetryEnv({
+          enable: true, // Always enable telemetry for PRP generation
+          exporter: this.configManager?.getConfig()?.telemetryExporter || 'console',
+          endpoint: this.configManager?.getConfig()?.telemetryEndpoint
+        }),
+        OTEL_SERVICE_NAME: 'crystal-prp-generation'
       };
+      
+      // Log telemetry configuration for debugging
+      this.logger.info(`Telemetry enabled: CLAUDE_CODE_ENABLE_TELEMETRY=${env.CLAUDE_CODE_ENABLE_TELEMETRY}, OTEL_METRICS_EXPORTER=${env.OTEL_METRICS_EXPORTER}`);
       
       // Check if we should use streaming mode
       const useStreaming = request.streamProgress !== false;
@@ -229,6 +242,21 @@ export class PRPGenerationService extends EventEmitter {
         const claudeProcess = spawn(claudePath, args, {
           cwd: codebasePath,
           env
+        });
+        
+        // Initialize telemetry
+        const tracer = getTracer('prp-generation');
+        const span = tracer.startSpan('claude.prp.generation');
+        span.setAttributes({
+          'prp.template_id': request.templateId,
+          'prp.codebase_path': codebasePath,
+          'claude.command': args.join(' ')
+        });
+        
+        const telemetryCollector = new ClaudeTelemetryCollector();
+        telemetryCollector.startOperation('prp_generation', {
+          templateId: request.templateId,
+          codebasePath
         });
         
         let output = '';
@@ -296,6 +324,14 @@ export class PRPGenerationService extends EventEmitter {
                 this.logger.info(`Message #${messageCount} type: ${message.type}`);
               }
               
+              // Parse telemetry data from messages
+              telemetryCollector.parseClaudeMessage(message);
+              
+              // Log message structure for debugging telemetry
+              if (message.type === 'assistant' && message.message?.usage) {
+                this.logger.info(`Assistant message with usage: input=${message.message.usage.input_tokens}, output=${message.message.usage.output_tokens}`);
+              }
+              
               // Handle different message types
               if (message.type === 'assistant' && message.message) {
                 // Extract text content from nested message structure
@@ -312,6 +348,9 @@ export class PRPGenerationService extends EventEmitter {
                 if (message.message.stop_reason) {
                   this.logger.info(`Assistant message stopped with reason: ${message.message.stop_reason}; ${message.message.content}`);
                 }
+              } else if (message.type === 'telemetry' || message.type === 'metrics') {
+                // Handle telemetry messages specifically
+                this.logger.info(`Received telemetry message: ${JSON.stringify(message)}`);
               }
               
               // Always check for progress updates on any message (except system)
@@ -339,7 +378,8 @@ export class PRPGenerationService extends EventEmitter {
                   this.emit('progress', {
                     stage: 'processing',
                     message: statusMessage,
-                    progress: progressPercent
+                    progress: progressPercent,
+                    telemetry: telemetryCollector.getTelemetryData()
                   });
                   lastProgressUpdate = now;
                 }
@@ -383,11 +423,19 @@ export class PRPGenerationService extends EventEmitter {
           const duration = Date.now() - startTime;
           
           if (code === 0) {
+            // End telemetry spans successfully
+            telemetryCollector.endOperation('prp_generation', {
+              code: SpanStatusCode.OK
+            });
+            span.setStatus({ code: SpanStatusCode.OK });
+            span.end();
+            
             const enhanced = this.postProcessResult(output.trim(), request, duration);
             this.emit('progress', {
               stage: 'complete',
               message: 'PRP generation complete!',
               progress: 100,
+              telemetry: telemetryCollector.getTelemetryData(),
               metadata: {
                 duration_ms: duration
               }
@@ -396,6 +444,13 @@ export class PRPGenerationService extends EventEmitter {
             resolve(enhanced);
           } else if (code === null || code === -15) { // -15 is SIGTERM
             // Process was killed by timeout
+            telemetryCollector.endOperation('prp_generation', {
+              code: SpanStatusCode.ERROR,
+              message: 'Process terminated'
+            });
+            span.setStatus({ code: SpanStatusCode.ERROR, message: 'Process terminated' });
+            span.end();
+            
             this.logger.error(`Claude process terminated (timeout or manual kill)`);
             // Don't emit another error if already emitted by timeout handler
             if (output.trim()) {
@@ -406,11 +461,19 @@ export class PRPGenerationService extends EventEmitter {
               resolve(this.enhanceWithSimpleLogic(prompt, request));
             }
           } else {
+            telemetryCollector.endOperation('prp_generation', {
+              code: SpanStatusCode.ERROR,
+              message: `Process exited with code ${code}`
+            });
+            span.setStatus({ code: SpanStatusCode.ERROR, message: `Process exited with code ${code}` });
+            span.end();
+            
             this.logger.error(`Claude process exited with code ${code}`);
             this.emit('progress', {
               stage: 'error',
               message: 'Claude encountered an error, using fallback generation',
-              progress: 0
+              progress: 0,
+              telemetry: telemetryCollector.getTelemetryData()
             });
             resolve(this.enhanceWithSimpleLogic(prompt, request));
           }
@@ -418,11 +481,19 @@ export class PRPGenerationService extends EventEmitter {
         
         // Handle errors
         claudeProcess.on('error', (error) => {
+          telemetryCollector.endOperation('prp_generation', {
+            code: SpanStatusCode.ERROR,
+            message: error.message
+          });
+          span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+          span.end();
+          
           this.logger.error('Failed to spawn Claude process:', error);
           this.emit('progress', {
             stage: 'error',
             message: 'Failed to start Claude, using fallback generation',
-            progress: 0
+            progress: 0,
+            telemetry: telemetryCollector.getTelemetryData()
           });
           resolve(this.enhanceWithSimpleLogic(prompt, request));
         });

@@ -21,6 +21,9 @@ export class ConfigManager extends EventEmitter {
       systemPromptAppend: undefined,
       runScript: undefined,
       defaultPermissionMode: 'ignore',
+      enableTelemetry: process.env.ENABLE_CLAUDE_TELEMETRY === '1',
+      telemetryExporter: (process.env.OTEL_METRICS_EXPORTER as 'console' | 'otlp') || 'console',
+      telemetryEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
       defaultPRPPromptTemplate: `## Execution Process
 
 1. **Load PRP**

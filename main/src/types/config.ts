@@ -20,6 +20,10 @@ export interface AppConfig {
     scanSubdirectories: boolean;
     cacheTemplates: boolean;
   };
+  // OpenTelemetry settings
+  enableTelemetry?: boolean;
+  telemetryEndpoint?: string;
+  telemetryExporter?: 'console' | 'otlp';
 }
 
 export interface UpdateConfigRequest {
@@ -37,4 +41,8 @@ export interface UpdateConfigRequest {
     scanSubdirectories: boolean;
     cacheTemplates: boolean;
   };
+  // OpenTelemetry settings
+  enableTelemetry?: boolean;
+  telemetryEndpoint?: string;
+  telemetryExporter?: 'console' | 'otlp';
 }

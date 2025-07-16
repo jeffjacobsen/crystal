@@ -11,6 +11,7 @@ import { getShellPath, findExecutableInPath } from '../utils/shellPath';
 import { PermissionManager } from './permissionManager';
 import { execSync, exec } from 'child_process';
 import { promisify } from 'util';
+import { getClaudeTelemetryEnv } from '../telemetry';
 
 interface ClaudeCodeProcess {
   process: pty.IPty;
@@ -456,7 +457,15 @@ export class ClaudeCodeManager extends EventEmitter {
         // Ensure MCP-related environment variables are preserved
         MCP_SOCKET_PATH: this.permissionIpcPath || '',
         // Add debug mode for MCP if verbose logging is enabled
-        ...(this.configManager?.getConfig()?.verbose ? { MCP_DEBUG: '1' } : {})
+        ...(this.configManager?.getConfig()?.verbose ? { MCP_DEBUG: '1' } : {}),
+        // Add OpenTelemetry configuration for Claude
+        ...getClaudeTelemetryEnv({
+          enable: this.configManager?.getConfig()?.enableTelemetry ?? false,
+          exporter: this.configManager?.getConfig()?.telemetryExporter || 'console',
+          endpoint: this.configManager?.getConfig()?.telemetryEndpoint
+        }),
+        // Set service name for telemetry clarity
+        OTEL_SERVICE_NAME: `crystal-claude-${sessionId}`
       } as { [key: string]: string };
       
       
