@@ -40,16 +40,10 @@ export class PRPGenerationService extends EventEmitter {
       );
       
       this.logger.info(`Generating PRP using template: ${metadata.name}`);
-      
-      // Extract content from <template> tags if present
-      let templateContent = template;
-      const templateMatch = template.match(/<template>([\s\S]*?)<\/template>/);
-      if (templateMatch) {
-        templateContent = templateMatch[1].trim();
-      }
-      
       // Process variables
-      let processedTemplate = templateContent;
+      let processedTemplate = template;
+      
+      // TODO: We aren't currently using metadata.variables, but we should.
       
       // First, validate required variables
       if (metadata.variables) {
@@ -135,7 +129,7 @@ export class PRPGenerationService extends EventEmitter {
         const placeholder = new RegExp(`\\$${key}`, 'g');
         processedTemplate = processedTemplate.replace(placeholder, value);
       }
-      
+
       // Use Claude Code to enhance the template with project-specific context
       let finalContent = processedTemplate;
       if (request.useClaudeGeneration !== false) {
@@ -144,7 +138,7 @@ export class PRPGenerationService extends EventEmitter {
           request
         );
       }
-      
+
       return {
         content: finalContent,
         templateUsed: metadata.id,
@@ -316,7 +310,7 @@ export class PRPGenerationService extends EventEmitter {
                 
                 // Check if this is the final assistant message
                 if (message.message.stop_reason) {
-                  this.logger.info(`Assistant message stopped with reason: ${message.message.stop_reason}`);
+                  this.logger.info(`Assistant message stopped with reason: ${message.message.stop_reason}; ${message.message.content}`);
                 }
               }
               
