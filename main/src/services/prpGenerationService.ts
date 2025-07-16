@@ -273,6 +273,35 @@ export class PRPGenerationService extends EventEmitter {
         let silenceTimeout: NodeJS.Timeout;
         let totalTimeout: NodeJS.Timeout;
         
+        // Set up telemetry interval updates (every 1 second)
+        let currentStage: 'starting' | 'processing' = 'processing';
+        const telemetryInterval = setInterval(() => {
+          const now = Date.now();
+          const timeSinceLastMessage = now - lastMessageTime;
+          const totalElapsed = now - startTime;
+          const telemetryData = telemetryCollector.getTelemetryData();
+          
+          let statusMessage = 'Claude is analyzing your requirements...';
+          
+          // Add warning if approaching timeouts
+          if (timeSinceLastMessage > 120000) { // 2 minutes of silence
+            statusMessage = 'Waiting for Claude response...';
+          }
+          if (totalElapsed > 1200000) { // 20 minutes total
+            statusMessage = 'This is taking longer than usual...';
+          }
+          if (totalElapsed > 2400000) { // 40 minutes total
+            statusMessage = 'Consider simplifying the request if Claude seems stuck';
+          }
+          
+          this.emit('progress', {
+            stage: currentStage,
+            message: statusMessage,
+            progress: Math.floor(Math.min(10 + messageCount / 2.3, 80)),
+            telemetry: telemetryData
+          });
+        }, 1000);
+        
         const resetSilenceTimeout = () => {
           if (silenceTimeout) clearTimeout(silenceTimeout);
           silenceTimeout = setTimeout(() => {
@@ -354,37 +383,12 @@ export class PRPGenerationService extends EventEmitter {
                 this.logger.info(`Received telemetry message: ${JSON.stringify(message)}`);
               }
               
-              // Always check for progress updates on any message (except system)
+              // Only update last message time for timeout tracking
               if (message.type !== 'system') {
-                // Send progress update (throttled)
-                const now = Date.now();
-                if (now - lastProgressUpdate > 500) { // Update every 500ms
-                  const progressPercent = Math.floor(Math.min(10 + messageCount / 2.3, 80));
-                  const timeSinceLastMessage = now - lastMessageTime;
-                  const totalElapsed = now - startTime;
-                  
-                  let statusMessage = 'Claude is analyzing your requirements...';
-                  
-                  // Add warning if approaching timeouts
-                  if (timeSinceLastMessage > 120000) { // 2 minutes of silence
-                    statusMessage = 'Waiting for Claude response...';
-                  }
-                  if (totalElapsed > 1200000) { // 20 minutes total
-                    statusMessage = 'This is taking longer than usual...';
-                  }
-                  if (totalElapsed > 2400000) { // 40 minutes total
-                    statusMessage = 'Consider simplifying the request if Claude seems stuck';
-                  }
-                  
-                  this.emit('progress', {
-                    stage: 'processing',
-                    message: statusMessage,
-                    progress: progressPercent,
-                    telemetry: telemetryCollector.getTelemetryData()
-                  });
-                  lastProgressUpdate = now;
-                }
-              } else if (message.type === 'result') {
+                lastMessageTime = Date.now();
+              }
+              
+              if (message.type === 'result') {
                 // Final result message with metadata
                 this.emit('progress', {
                   stage: 'finalizing',
@@ -412,17 +416,40 @@ export class PRPGenerationService extends EventEmitter {
             
             // Try to parse OpenTelemetry console output
             try {
-              // OpenTelemetry console exporter outputs in a specific format
-              // We might need to parse it differently based on the actual format
-              if (stderr.includes('"name":"claude.tokens.total"')) {
-                // This looks like OTLP metrics
-                const metricsMatch = stderr.match(/"value":(\d+)/g);
-                if (metricsMatch) {
-                  this.logger.info(`Found token metrics in stderr: ${metricsMatch}`);
+              // Parse token metrics from OTEL output
+              const inputTokenMatch = stderr.match(/claude\.tokens\.total.*?"value":(\d+).*?"type":"input"/);
+              const outputTokenMatch = stderr.match(/claude\.tokens\.total.*?"value":(\d+).*?"type":"output"/);
+              
+              if (inputTokenMatch || outputTokenMatch) {
+                const inputTokens = inputTokenMatch ? parseInt(inputTokenMatch[1]) : 0;
+                const outputTokens = outputTokenMatch ? parseInt(outputTokenMatch[1]) : 0;
+                
+                if (inputTokens > 0 || outputTokens > 0) {
+                  this.logger.info(`OTEL tokens - input: ${inputTokens}, output: ${outputTokens}`);
+                  telemetryCollector.recordTokenUsage(inputTokens, outputTokens);
+                }
+              }
+              
+              // Parse other metrics like API calls, tool usage, etc.
+              if (stderr.includes('claude.api_calls.total')) {
+                const apiCallMatch = stderr.match(/claude\.api_calls\.total.*?"value":(\d+)/);
+                if (apiCallMatch) {
+                  telemetryCollector.recordApiCall('anthropic', 0);
+                }
+              }
+              
+              if (stderr.includes('claude.tool_usage.total')) {
+                const toolMatch = stderr.match(/claude\.tool_usage\.total.*?"tool":"([^"]+)".*?"value":(\d+)/);
+                if (toolMatch) {
+                  const toolName = toolMatch[1];
+                  const count = parseInt(toolMatch[2]);
+                  for (let i = 0; i < count; i++) {
+                    telemetryCollector.recordToolUsage(toolName);
+                  }
                 }
               }
             } catch (err) {
-              // Ignore parsing errors
+              this.logger.warn(`Failed to parse telemetry: ${err}`);
             }
           } else if (stderr.toLowerCase().includes('error')) {
             this.logger.warn(`Claude stderr: ${stderr}`);
@@ -435,9 +462,10 @@ export class PRPGenerationService extends EventEmitter {
         
         // Handle process completion
         claudeProcess.on('close', (code) => {
-          // Clear timeouts
+          // Clear timeouts and intervals
           if (silenceTimeout) clearTimeout(silenceTimeout);
           if (totalTimeout) clearTimeout(totalTimeout);
+          if (telemetryInterval) clearInterval(telemetryInterval);
           
           const duration = Date.now() - startTime;
           
@@ -500,6 +528,9 @@ export class PRPGenerationService extends EventEmitter {
         
         // Handle errors
         claudeProcess.on('error', (error) => {
+          // Clear interval
+          if (telemetryInterval) clearInterval(telemetryInterval);
+          
           telemetryCollector.endOperation('prp_generation', {
             code: SpanStatusCode.ERROR,
             message: error.message
