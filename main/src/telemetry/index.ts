@@ -94,7 +94,10 @@ export function getClaudeTelemetryEnv(config: TelemetryConfig = {}) {
 
   if (config.enable) {
     env.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+    
+    // Set exporter - console outputs to stderr
     env.OTEL_METRICS_EXPORTER = config.exporter || 'console';
+    env.OTEL_TRACES_EXPORTER = config.exporter || 'console';
     env.OTEL_LOGS_EXPORTER = config.exporter || 'console';
     
     if (config.exporter === 'otlp' && config.endpoint) {
@@ -104,6 +107,10 @@ export function getClaudeTelemetryEnv(config: TelemetryConfig = {}) {
     // Set shorter export intervals for better real-time monitoring
     env.OTEL_METRIC_EXPORT_INTERVAL = '5000'; // 5 seconds
     env.OTEL_BSP_SCHEDULE_DELAY = '1000'; // 1 second for trace batching
+    
+    // Additional settings from Claude docs
+    env.OTEL_EXPORTER_OTLP_COMPRESSION = 'gzip';
+    env.OTEL_RESOURCE_ATTRIBUTES = 'service.name=crystal-prp-generation';
   }
 
   return env;

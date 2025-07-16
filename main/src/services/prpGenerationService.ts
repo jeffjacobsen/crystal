@@ -401,11 +401,29 @@ export class PRPGenerationService extends EventEmitter {
           }
         });
         
-        // Handle stderr
+        // Handle stderr - this might contain telemetry data
         claudeProcess.stderr.on('data', (data) => {
           const stderr = data.toString();
-          // Only log stderr if it contains actual errors (not just warnings)
-          if (stderr.toLowerCase().includes('error')) {
+          
+          // Check if this is telemetry data (OpenTelemetry console exporter format)
+          if (stderr.includes('metrics') || stderr.includes('spans') || stderr.includes('tokens')) {
+            this.logger.info(`Claude telemetry: ${stderr}`);
+            
+            // Try to parse OpenTelemetry console output
+            try {
+              // OpenTelemetry console exporter outputs in a specific format
+              // We might need to parse it differently based on the actual format
+              if (stderr.includes('"name":"claude.tokens.total"')) {
+                // This looks like OTLP metrics
+                const metricsMatch = stderr.match(/"value":(\d+)/g);
+                if (metricsMatch) {
+                  this.logger.info(`Found token metrics in stderr: ${metricsMatch}`);
+                }
+              }
+            } catch (err) {
+              // Ignore parsing errors
+            }
+          } else if (stderr.toLowerCase().includes('error')) {
             this.logger.warn(`Claude stderr: ${stderr}`);
           }
         });
