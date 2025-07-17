@@ -175,6 +175,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       variables?: Record<string, any>;
       streamProgress?: boolean;
     }): Promise<IPCResponse> => ipcRenderer.invoke('prp:generate-from-template', request),
+    cancelGeneration: (): Promise<IPCResponse> => ipcRenderer.invoke('prp:cancel-generation'),
     getTemplates: (): Promise<IPCResponse> => ipcRenderer.invoke('prp:get-templates'),
     validateTemplate: (templatePath: string): Promise<IPCResponse> => ipcRenderer.invoke('prp:validate-template', templatePath),
     reloadTemplates: (customPaths?: string[]): Promise<IPCResponse> => ipcRenderer.invoke('prp:reload-templates', customPaths),

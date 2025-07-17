@@ -234,6 +234,16 @@ export function registerDocumentHandlers(services: AppServices) {
     }
   });
 
+  ipcMain.handle('prp:cancel-generation', async (_event) => {
+    try {
+      services.prpGenerationService.cancelGeneration();
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] Failed to cancel PRP generation:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel generation' };
+    }
+  });
+
   // Session document associations
   ipcMain.handle('session-documents:add', async (_, sessionId: string, documentIds: number[]) => {
     try {

@@ -25,7 +25,7 @@ const toolUsageCounter = meter.createCounter('claude.tool_usage.total', {
 
 export class ClaudeTelemetryCollector {
   private currentSpans: Map<string, any> = new Map();
-  private metrics: TelemetryData['metrics'] = {
+  public metrics: TelemetryData['metrics'] = {
     sessionCount: 0,
     linesOfCodeModified: 0,
     apiCost: 0,

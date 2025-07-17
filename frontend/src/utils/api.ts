@@ -451,6 +451,11 @@ export class API {
       return window.electronAPI.prp.generateFromTemplate(request);
     },
 
+    async cancelGeneration() {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.prp.cancelGeneration();
+    },
+
     async getTemplates() {
       if (!isElectron()) throw new Error('Electron API not available');
       return window.electronAPI.prp.getTemplates();

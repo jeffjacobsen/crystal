@@ -47,6 +47,7 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
     message: 'Initializing...',
     progress: 0
   });
+  const [isCancelling, setIsCancelling] = useState(false);
   const { showError } = useErrorStore();
 
   // Template icons mapping by category
@@ -120,6 +121,21 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
       ]);
     } finally {
       setTemplatesLoading(false);
+    }
+  };
+
+  const cancelGeneration = async () => {
+    setIsCancelling(true);
+    try {
+      await API.prp.cancelGeneration();
+      // Close the dialog instead of going back to details
+      onClose();
+    } catch (error: any) {
+      console.error('Failed to cancel generation:', error);
+      // Even if cancel fails, close the dialog
+      onClose();
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -513,6 +529,19 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
             </p>
           </div>
         )}
+        
+        {/* Cancel button */}
+        {generationProgress.stage !== 'complete' && generationProgress.stage !== 'error' && (
+          <div className="mt-6">
+            <button
+              onClick={cancelGeneration}
+              disabled={isCancelling}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCancelling ? 'Cancelling...' : 'Cancel'}
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -608,7 +637,13 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={async () => {
+              // Cancel generation if in progress
+              if (currentStep === 'generating' && generationProgress.stage !== 'complete' && generationProgress.stage !== 'error') {
+                await cancelGeneration();
+              }
+              onClose();
+            }}
             className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -19,6 +19,7 @@
     ]
   },
   "scripts": {
+    "postinstall": "electron-builder install-app-deps",
     "dev": "pnpm run electron-dev",
     "electron-dev": "concurrently \"pnpm run --filter frontend dev\" \"wait-on http://localhost:4521 && electron .\"",
     "electron-dev:custom": "concurrently \"pnpm run --filter frontend dev\" \"wait-on http://localhost:4521 && electron .\"",
@@ -38,7 +39,6 @@
     "preview": "pnpm run --filter frontend preview",
     "lint": "pnpm run -r lint",
     "typecheck": "pnpm run -r typecheck",
-    "postinstall": "electron-builder install-app-deps",
     "electron:rebuild": "cd main && electron-rebuild -f -w better-sqlite3",
     "setup": "pnpm install && pnpm run build:main && pnpm run electron:rebuild",
     "generate-notices": "node scripts/generate-notices.js",
