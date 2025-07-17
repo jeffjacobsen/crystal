@@ -9,7 +9,6 @@ export const TelemetryView: React.FC<TelemetryViewProps> = ({ telemetry }) => {
   if (!telemetry) return null;
 
   const formatNumber = (num: number) => num.toLocaleString();
-  const formatCost = (cost: number) => `$${cost.toFixed(2)}`;
   const activeSpansCount = telemetry.traces.spans.filter(span => !span.endTime).length;
 
   return (
@@ -27,7 +26,7 @@ export const TelemetryView: React.FC<TelemetryViewProps> = ({ telemetry }) => {
             </span>
           )}
         </div>
-        <div className="grid grid-cols-4 gap-3 text-sm">
+        <div className="grid grid-cols-3 gap-3 text-sm">
           <div className="space-y-1">
             <span className="text-gray-500 dark:text-gray-400 text-xs">Input</span>
             <div className="font-mono font-medium text-gray-900 dark:text-gray-100">
@@ -44,12 +43,6 @@ export const TelemetryView: React.FC<TelemetryViewProps> = ({ telemetry }) => {
             <span className="text-gray-500 dark:text-gray-400 text-xs">Total</span>
             <div className="font-mono font-medium text-gray-900 dark:text-gray-100">
               {formatNumber(telemetry.metrics.tokenUsage.total)}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <span className="text-gray-500 dark:text-gray-400 text-xs">API Cost</span>
-            <div className="font-mono font-medium text-gray-900 dark:text-gray-100">
-              {formatCost(telemetry.metrics.apiCost)}
             </div>
           </div>
         </div>

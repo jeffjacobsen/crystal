@@ -187,7 +187,12 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
 
       if (response.success && response.data) {
         setGeneratedPRP(response.data.content);
-        setCurrentStep('review');
+        // Don't automatically go to review - let user click Next
+        setGenerationProgress(prev => ({
+          ...prev,
+          stage: 'complete',
+          message: 'Generation complete!'
+        }));
       } else {
         throw new Error(response.error || 'Failed to generate PRP');
       }
@@ -530,9 +535,16 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
           </div>
         )}
         
-        {/* Cancel button */}
-        {generationProgress.stage !== 'complete' && generationProgress.stage !== 'error' && (
-          <div className="mt-6">
+        {/* Cancel/Next button */}
+        <div className="mt-6">
+          {generationProgress.stage === 'complete' ? (
+            <button
+              onClick={() => setCurrentStep('review')}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Next
+            </button>
+          ) : generationProgress.stage !== 'error' ? (
             <button
               onClick={cancelGeneration}
               disabled={isCancelling}
@@ -540,8 +552,8 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
             >
               {isCancelling ? 'Cancelling...' : 'Cancel'}
             </button>
-          </div>
-        )}
+          ) : null}
+        </div>
       </div>
     );
   };
@@ -662,9 +674,10 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
               { key: 'review', label: 'Review', icon: CheckCircle }
             ].map((step, index) => {
               const isActive = currentStep === step.key;
-              const isCompleted = ['template', 'details', 'generating'].includes(step.key) && 
-                                ['details', 'generating', 'review'].includes(currentStep) &&
-                                currentStep !== step.key;
+              const stepOrder = ['template', 'details', 'generating', 'review'];
+              const currentStepIndex = stepOrder.indexOf(currentStep);
+              const stepIndex = stepOrder.indexOf(step.key);
+              const isCompleted = stepIndex < currentStepIndex;
               const IconComponent = step.icon;
               
               return (
