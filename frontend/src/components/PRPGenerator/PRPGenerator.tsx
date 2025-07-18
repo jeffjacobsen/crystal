@@ -181,8 +181,7 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
       const response = await API.prp.generateFromTemplate({
         templateId: selectedTemplate.id,
         featureRequest,
-        codebasePath: codebasePath || undefined,
-        streamProgress: true
+        codebasePath: codebasePath || undefined
       });
 
       if (response.success && response.data) {
@@ -454,7 +453,7 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
 
   const renderGenerating = () => {
     const getStageIcon = (stage: string, currentStage: string) => {
-      const stages = ['starting', 'processing', 'finalizing', 'complete'];
+      const stages = ['starting', 'processing', 'complete'];
       const currentIndex = stages.indexOf(currentStage);
       const stageIndex = stages.indexOf(stage);
       
@@ -466,7 +465,7 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
         return <Clock className="w-4 h-4 text-blue-600 animate-spin" />;
       } else if (stageIndex === currentIndex && currentStage === 'complete') {
         return <CheckCircle className="w-4 h-4 text-green-600" />;
-      } else if (stage === 'complete' && stages.indexOf(currentStage) >= 3) {
+      } else if (stage === 'complete' && stages.indexOf(currentStage) >= 2) {
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       } else {
         return <Clock className="w-4 h-4 text-gray-400" />;
@@ -478,16 +477,57 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
         <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
           <Sparkles className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-pulse" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
           Generating PRP with Claude Code
         </h3>
         
-        {/* Telemetry View - moved to where progress bar was */}
-        {generationProgress.telemetry && (
-          <div className="w-full max-w-md mx-auto mb-6">
-            <TelemetryView telemetry={generationProgress.telemetry} />
-          </div>
-        )}
+        {/* Status indicator - centered between title and telemetry */}
+        <div className="flex justify-center mb-3">
+          {(() => {
+            const activeSpansCount = generationProgress.telemetry?.traces.spans.filter(span => !span.endTime).length || 0;
+            if (activeSpansCount > 0) {
+              return (
+                <span className="flex items-center">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1" />
+                  <span className="text-xs text-green-600 dark:text-green-400">Active</span>
+                </span>
+              );
+            } else if (generationProgress.stage === 'starting') {
+              return (
+                <span className="flex items-center">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-1" />
+                  <span className="text-xs text-blue-600 dark:text-blue-400">Initializing</span>
+                </span>
+              );
+            } else if (generationProgress.stage === 'complete') {
+              return (
+                <span className="flex items-center">
+                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1" />
+                  <span className="text-xs text-green-600 dark:text-green-400">Complete</span>
+                </span>
+              );
+            } else if (generationProgress.stage === 'error') {
+              return (
+                <span className="flex items-center">
+                  <span className="w-2 h-2 bg-red-500 rounded-full mr-1" />
+                  <span className="text-xs text-red-600 dark:text-red-400">Error</span>
+                </span>
+              );
+            } else {
+              return (
+                <span className="flex items-center">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full mr-1" />
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Waiting</span>
+                </span>
+              );
+            }
+          })()}
+        </div>
+        
+        {/* Telemetry View - always show with placeholders */}
+        <div className="w-full max-w-md mx-auto mb-6">
+          <TelemetryView telemetry={generationProgress.telemetry} />
+        </div>
         
         <div className="space-y-2 text-left max-w-md mx-auto">
           <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
@@ -501,12 +541,6 @@ export function PRPGenerator({ isOpen, onClose, projectId: _projectId, initialCo
           }`}>
             {getStageIcon('processing', generationProgress.stage)}
             <span className={generationProgress.stage === 'processing' ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-300'}>Analyzing requirements and codebase</span>
-          </div>
-          <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
-            generationProgress.stage === 'finalizing' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : ''
-          }`}>
-            {getStageIcon('finalizing', generationProgress.stage)}
-            <span className={generationProgress.stage === 'finalizing' ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-600 dark:text-gray-300'}>Finalizing PRP generation</span>
           </div>
           <div className={`flex items-center gap-2 text-sm p-2 rounded-md transition-all ${
             generationProgress.stage === 'complete' ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : ''

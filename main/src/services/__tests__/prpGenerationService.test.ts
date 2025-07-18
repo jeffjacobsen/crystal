@@ -160,7 +160,6 @@ Build a {{COMPONENT_TYPE}} component named {{COMPONENT_NAME}}.
         },
         useClaudeGeneration: false, // Disable Claude generation for this test
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       });
 
       expect(result).toBeDefined();
@@ -180,7 +179,6 @@ Build a {{COMPONENT_TYPE}} component named {{COMPONENT_NAME}}.
         },
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       });
 
       expect(result).toBeDefined();
@@ -198,7 +196,6 @@ Build a {{COMPONENT_TYPE}} component named {{COMPONENT_NAME}}.
         },
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       })).rejects.toThrow('Missing required variable: COMPONENT_NAME');
     });
 
@@ -212,7 +209,6 @@ Build a {{COMPONENT_TYPE}} component named {{COMPONENT_NAME}}.
         },
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       })).rejects.toThrow('Invalid value for COMPONENT_NAME');
     });
 
@@ -226,7 +222,6 @@ Build a {{COMPONENT_TYPE}} component named {{COMPONENT_NAME}}.
         },
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       })).rejects.toThrow('Invalid value for COMPONENT_TYPE');
     });
 
@@ -240,7 +235,6 @@ Build a {{COMPONENT_TYPE}} component named {{COMPONENT_NAME}}.
         featureRequest: 'Test',
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       })).rejects.toThrow('Template non-existent not found');
     });
 
@@ -273,7 +267,6 @@ Build a {{COMPONENT_TYPE}} component named {{COMPONENT_NAME}}.
         featureRequest: 'Build a dashboard',
         useClaudeGeneration: true,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       });
 
       expect(result).toBeDefined();
@@ -318,7 +311,6 @@ Feature A is disabled
         variables: { FEATURE_A: true, FEATURE_B: true },
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       });
 
       expect(result.content).toContain('Both A and B are enabled');
@@ -332,7 +324,6 @@ Feature A is disabled
         variables: { FEATURE_A: true, FEATURE_B: false },
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       });
 
       expect(result.content).toContain('Only A is enabled');
@@ -345,7 +336,6 @@ Feature A is disabled
         variables: { FEATURE_A: false, FEATURE_B: false },
         useClaudeGeneration: false,
         sessionId: 'test-session',
-        eventEmitter: mockEmitter
       });
 
       expect(result.content).toContain('Feature A is disabled');

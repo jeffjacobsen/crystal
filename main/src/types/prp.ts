@@ -34,6 +34,5 @@ export interface PRPGenerationRequest {
   sessionId?: string;  // Optional session ID for context
   codebasePath?: string;  // Optional path to existing codebase
   variables?: Record<string, any>;  // User-provided variable values
-  streamProgress?: boolean;  // Whether to stream progress updates
   useClaudeGeneration?: boolean;  // Whether to enhance template with Claude
 }

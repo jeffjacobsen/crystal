@@ -197,36 +197,26 @@ export function registerDocumentHandlers(services: AppServices) {
     // console.log('[IPC] prp:generate-from-template called with:', JSON.stringify({
     //   templateId: request.templateId,
     //   hasFeatureRequest: !!request.featureRequest,
-    //   codebasePath: request.codebasePath,
-    //   streamProgress: request.streamProgress
+    //   codebasePath: request.codebasePath
     // }));
     
     try {
-      // Enable streaming by default
-      request.streamProgress = request.streamProgress !== false;
+      // Set up progress listener
+      // console.log('[IPC] Setting up progress listener for PRP generation');
+      const progressHandler = (progress: any) => {
+        // console.log('[IPC] Sending progress to renderer:', progress);
+        event.sender.send('prp:generation-progress', progress);
+      };
       
-      // Set up progress listener if streaming is enabled
-      if (request.streamProgress) {
-        // console.log('[IPC] Setting up progress listener for PRP generation');
-        const progressHandler = (progress: any) => {
-          // console.log('[IPC] Sending progress to renderer:', progress);
-          event.sender.send('prp:generation-progress', progress);
-        };
-        
-        // Add progress listener
-        services.prpGenerationService.on('progress', progressHandler);
-        
-        try {
-          const result = await services.prpGenerationService.generateFromTemplate(request);
-          return { success: true, data: result };
-        } finally {
-          // Clean up listener
-          services.prpGenerationService.removeListener('progress', progressHandler);
-        }
-      } else {
-        // No streaming
+      // Add progress listener
+      services.prpGenerationService.on('progress', progressHandler);
+      
+      try {
         const result = await services.prpGenerationService.generateFromTemplate(request);
         return { success: true, data: result };
+      } finally {
+        // Clean up listener
+        services.prpGenerationService.removeListener('progress', progressHandler);
       }
     } catch (error) {
       console.error('Failed to generate PRP from template:', error);

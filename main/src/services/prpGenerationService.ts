@@ -35,8 +35,7 @@ export class PRPGenerationService extends EventEmitter {
       this.logger.info(`generateFromTemplate called with request: ${JSON.stringify({
         templateId: request.templateId,
         featureRequest: request.featureRequest?.substring(0, 50) + '...',
-        codebasePath: request.codebasePath,
-        streamProgress: request.streamProgress
+        codebasePath: request.codebasePath
       })}`);
       
       // Load template components
@@ -159,79 +158,35 @@ export class PRPGenerationService extends EventEmitter {
     template: string,
     request: PRPGenerationRequest
   ): Promise<string> {
-    try {
-      // Use provided codebase path or current directory
-      const codebasePath = request.codebasePath || process.cwd();
-      
-      // Simply use the template as the prompt (it already has everything)
-      const prompt = template;
-      
-      // Get Claude executable path
-      const claudePath = this.getClaudePath();
-      
-      // Prepare environment
-      const telemetryEnv = getClaudeTelemetryEnv({
-        enable: true, // Always enable telemetry for PRP generation
-        exporter: this.configManager?.getConfig()?.telemetryExporter || 'otlp', // Default to OTLP
-        endpoint: this.configManager?.getConfig()?.telemetryEndpoint || 'http://localhost:4318'
-      });
-      
-      const env = {
-        ...process.env,
-        PATH: getShellPath(),
-        ...telemetryEnv,
-        OTEL_SERVICE_NAME: 'crystal-prp-generation'
-      } as { [key: string]: string };
-      
-      // Log telemetry configuration for debugging
-      this.logger.info(`Telemetry enabled: CLAUDE_CODE_ENABLE_TELEMETRY=${telemetryEnv.CLAUDE_CODE_ENABLE_TELEMETRY}, OTEL_METRICS_EXPORTER=${telemetryEnv.OTEL_METRICS_EXPORTER}`);
-      
-      // Check if we should use streaming mode
-      const useStreaming = request.streamProgress !== false;
-      this.logger.info(`PRP generation mode - streaming: ${useStreaming}, streamProgress: ${request.streamProgress}`);
-      
-      if (useStreaming) {
-        // Use streaming with proper flags
-        this.logger.info('Calling enhanceWithClaudeStreaming method');
-        return this.enhanceWithClaudeStreaming(prompt, codebasePath, claudePath, env, request);
-      } else {
-        // No progress events, just execute with --print
-        try {
-          this.logger.info('Starting Claude with non-streaming mode for PRP generation');
-          const result = execSync(
-            `${claudePath} --print --output-format text`,
-            {
-              input: prompt,
-              encoding: 'utf8',
-              cwd: codebasePath,
-              env,
-              maxBuffer: 10 * 1024 * 1024 // 10MB buffer
-            }
-          );
-          console.log('ClaudeCode execution completed');
-          return this.postProcessResult(result.trim(), request);
-        } catch (error) {
-          this.logger.error('Failed to enhance PRP with Claude:', error instanceof Error ? error : new Error(String(error)));
-          return this.enhanceWithSimpleLogic(template, request);
-        }
-      }
-    } catch (error) {
-      this.logger.error('Failed to enhance PRP with Claude:', error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
-  }
-  
-  private async enhanceWithClaudeStreaming(
-    prompt: string,
-    codebasePath: string,
-    claudePath: string,
-    env: any,
-    request: PRPGenerationRequest
-  ): Promise<string> {
     return new Promise(async (resolve, reject) => {
       let otlpReceiver: OTLPReceiver | null = null;
       
       try {
+        // Use provided codebase path or current directory
+        const codebasePath = request.codebasePath || process.cwd();
+        
+        // Simply use the template as the prompt (it already has everything)
+        const prompt = template;
+        
+        // Get Claude executable path
+        const claudePath = this.getClaudePath();
+        
+        // Prepare environment
+        const telemetryEnv = getClaudeTelemetryEnv({
+          enable: true, // Always enable telemetry for PRP generation
+          exporter: this.configManager?.getConfig()?.telemetryExporter || 'otlp', // Default to OTLP
+          endpoint: this.configManager?.getConfig()?.telemetryEndpoint || 'http://localhost:4318'
+        });
+        
+        const env = {
+          ...process.env,
+          PATH: getShellPath(),
+          ...telemetryEnv,
+          OTEL_SERVICE_NAME: 'crystal-prp-generation'
+        } as { [key: string]: string };
+        
+        // Log telemetry configuration for debugging
+        this.logger.info(`Telemetry enabled: CLAUDE_CODE_ENABLE_TELEMETRY=${telemetryEnv.CLAUDE_CODE_ENABLE_TELEMETRY}, OTEL_METRICS_EXPORTER=${telemetryEnv.OTEL_METRICS_EXPORTER}`);
         // Check if we should use OTLP
         const useOTLP = env.OTEL_METRICS_EXPORTER === 'otlp';
         
@@ -249,14 +204,14 @@ export class PRPGenerationService extends EventEmitter {
         }
         
         // Emit initial progress
-        this.logger.info('Starting Claude with streaming mode for PRP generation');
+        this.logger.info('Starting Claude for PRP generation');
         this.emit('progress', {
           stage: 'starting',
           message: 'Starting Claude Code...'
         });
         
-        // Use --print with --verbose and --output-format stream-json
-        const args = ['--print', '--verbose', '--output-format', 'stream-json'];
+        // Use --print with --verbose (no streaming)
+        const args = ['--print', '--verbose'];
         this.logger.info(`Executing Claude with args: ${args.join(' ')}`);
         
         const claudeProcess = spawn(claudePath, args, {
@@ -283,19 +238,9 @@ export class PRPGenerationService extends EventEmitter {
         });
         
         let output = '';
-        let jsonBuffer = '';
-        let messageCount = 0;
-        let lastProgressUpdate = Date.now();
-        let lastMessageTime = Date.now();
         const startTime = Date.now();
-        const MAX_SILENCE_MS = 300000; // 5 minutes without messages
-        const MAX_TOTAL_TIME_MS = 3600000; // 60 minutes total
         
-        
-        // Set up telemetry interval updates (every 1 second)
-        let currentStage: 'starting' | 'processing' = 'processing';
-        
-        // If using OTLP, listen for telemetry updates and emit progress immediately
+        // Set up OTLP telemetry updates
         if (otlpReceiver) {
           otlpReceiver.on('telemetry-update', (telemetryData) => {
             // Merge OTLP data with collector data
@@ -306,129 +251,20 @@ export class PRPGenerationService extends EventEmitter {
             
             this.logger.info(`OTLP telemetry update - tokens: ${telemetryData.metrics.tokenUsage.total}, cost: $${telemetryData.metrics.apiCost.toFixed(2)}`);
             
-            // Emit progress update immediately when OTLP data is received
-            const now = Date.now();
-            const timeSinceLastMessage = now - lastMessageTime;
-            const totalElapsed = now - startTime;
-            
-            let statusMessage = 'Claude is analyzing your requirements...';
-            
-            // Add warning if approaching timeouts
-            if (timeSinceLastMessage > 120000) { // 2 minutes of silence
-              statusMessage = 'Waiting for Claude response...';
-            }
-            if (totalElapsed > 1200000) { // 20 minutes total
-              statusMessage = 'This is taking longer than usual...';
-            }
-            if (totalElapsed > 2400000) { // 40 minutes total
-              statusMessage = 'Consider simplifying the request if Claude seems stuck';
-            }
-            
-            // Emit progress with the fresh OTLP data
+            // Emit progress update when we receive telemetry
             this.emit('progress', {
-              stage: currentStage,
-              message: statusMessage,
-              progress: Math.floor(Math.min(10 + messageCount / 2.3, 80)),
+              stage: 'processing',
+              message: 'Claude is analyzing your requirements...',
+              progress: Math.min(50 + Math.floor(telemetryData.metrics.tokenUsage.total / 100), 90),
               telemetry: telemetryCollector.getTelemetryData()
             });
           });
         }
         
-        const telemetryInterval = setInterval(() => {
-          // If using OTLP, skip interval updates as we get real-time updates from OTLP events
-          if (otlpReceiver) {
-            return;
-          }
-          
-          const now = Date.now();
-          const timeSinceLastMessage = now - lastMessageTime;
-          const totalElapsed = now - startTime;
-          
-          // Get telemetry data from collector (for console exporter)
-          const telemetryData = telemetryCollector.getTelemetryData();
-          
-          let statusMessage = 'Claude is analyzing your requirements...';
-          
-          // Add warning if approaching timeouts
-          if (timeSinceLastMessage > 120000) { // 2 minutes of silence
-            statusMessage = 'Waiting for Claude response...';
-          }
-          if (totalElapsed > 1200000) { // 20 minutes total
-            statusMessage = 'This is taking longer than usual...';
-          }
-          if (totalElapsed > 2400000) { // 40 minutes total
-            statusMessage = 'Consider simplifying the request if Claude seems stuck';
-          }
-          
-          this.emit('progress', {
-            stage: currentStage,
-            message: statusMessage,
-            progress: Math.floor(Math.min(10 + messageCount / 2.3, 80)),
-            telemetry: telemetryData
-          });
-        }, 10000);
         
-        
-        // Handle stdout data
+        // Handle stdout data - simple collection without JSON parsing
         claudeProcess.stdout.on('data', (data) => {
-          const chunk = data.toString();
-          jsonBuffer += chunk;
-          
-          
-          // Try to parse complete JSON messages (newline-delimited)
-          const lines = jsonBuffer.split('\n');
-          jsonBuffer = lines.pop() || ''; // Keep incomplete line in buffer
-          
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            
-            try {
-              const message = JSON.parse(line);
-              messageCount++;
-              
-              // Log message types for debugging timeout issues
-              if (messageCount > 200) {
-                this.logger.info(`Message #${messageCount} type: ${message.type}`);
-              }
-              
-              // Handle different message types
-              if (message.type === 'assistant' && message.message) {
-                // Extract text content from nested message structure
-                const content = message.message.content;
-                if (Array.isArray(content)) {
-                  for (const item of content) {
-                    if (item.type === 'text' && item.text) {
-                      output += item.text;
-                    }
-                  }
-                }
-                
-              } else if (message.type === 'telemetry' || message.type === 'metrics') {
-                // Handle telemetry messages specifically
-                this.logger.info(`Received telemetry message: ${JSON.stringify(message)}`);
-              }
-              
-              // Only update last message time for timeout tracking
-              if (message.type !== 'system') {
-                lastMessageTime = Date.now();
-              }
-              
-              if (message.type === 'result') {
-                // Final result message with metadata
-                this.emit('progress', {
-                  stage: 'finalizing',
-                  message: 'Finalizing PRP generation...',
-                  progress: 90,
-                  metadata: {
-                    duration_ms: message.duration_ms,
-                    num_turns: message.num_turns
-                  }
-                });
-              }
-            } catch (err) {
-              // Not valid JSON, might be partial - this is normal
-            }
-          }
+          output += data.toString();
         });
         
         // Handle stderr 
@@ -443,10 +279,15 @@ export class PRPGenerationService extends EventEmitter {
         claudeProcess.stdin.write(prompt);
         claudeProcess.stdin.end();
         
+        // Emit processing stage after sending prompt
+        this.emit('progress', {
+          stage: 'processing',
+          message: 'Claude is analyzing your requirements...',
+          progress: 10
+        });
+        
         // Handle process completion
         claudeProcess.on('close', async (code) => {
-          // Clear timeouts and intervals
-          if (telemetryInterval) clearInterval(telemetryInterval);
           
           // Clear process reference
           this.activeProcess = null;
@@ -520,8 +361,6 @@ export class PRPGenerationService extends EventEmitter {
         
         // Handle errors
         claudeProcess.on('error', async (error) => {
-          // Clear interval
-          if (telemetryInterval) clearInterval(telemetryInterval);
           
           // Clear process reference
           this.activeProcess = null;

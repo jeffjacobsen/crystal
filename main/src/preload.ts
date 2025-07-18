@@ -173,7 +173,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       additionalContext?: string;
       codebasePath?: string;
       variables?: Record<string, any>;
-      streamProgress?: boolean;
     }): Promise<IPCResponse> => ipcRenderer.invoke('prp:generate-from-template', request),
     cancelGeneration: (): Promise<IPCResponse> => ipcRenderer.invoke('prp:cancel-generation'),
     getTemplates: (): Promise<IPCResponse> => ipcRenderer.invoke('prp:get-templates'),

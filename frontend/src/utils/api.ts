@@ -445,7 +445,6 @@ export class API {
       additionalContext?: string;
       codebasePath?: string;
       variables?: Record<string, any>;
-      streamProgress?: boolean;
     }) {
       if (!isElectron()) throw new Error('Electron API not available');
       return window.electronAPI.prp.generateFromTemplate(request);

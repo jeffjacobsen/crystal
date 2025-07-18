@@ -177,7 +177,6 @@ interface ElectronAPI {
       additionalContext?: string;
       codebasePath?: string;
       variables?: Record<string, any>;
-      streamProgress?: boolean;
     }) => Promise<IPCResponse>;
     cancelGeneration: () => Promise<IPCResponse>;
     getTemplates: () => Promise<IPCResponse>;
